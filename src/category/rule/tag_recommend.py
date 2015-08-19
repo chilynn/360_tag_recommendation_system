@@ -6,35 +6,32 @@ import json
 import jieba,jieba.posseg,jieba.analyse
 import itertools
 
+#类目id与类目名称映射
 def cidToName(category_id):
 	return u'通讯社交'
 
-#去除一些被否定的类目词
-def negativeCategory(text,category_domain_set):
-	negative_category = set([])
-
-	return negative_category
-
-def recommendTag(category_id,category_parent_dict,category_child_dict,category_synonyms_dict,comment_category_set,ambiguation_dict):
-	category_name = cidToName(category_id)
+#标签推荐
+def recommendTag(category_id,category_parent_dict,category_child_dict,category_synonyms_dict,category_indicator_dict,comment_category_set,ambiguation_dict):
+	#待处理的主类目
+	main_category_name = cidToName(category_id)
+	
 	outfile_txt = open('tag_recommend_result.txt','wb')
 	outfile_json = open('tag_recommend_result.json','wb')
 
 	jieba.load_userdict('../../../data/jieba_userdict.txt')
 	stopword_set = text_process.getStopword('../../../data/stopword.txt')
 
-	#构建候选词集合，category_domain_set
-	node_children_dict = createNodeChildrenDict(category_child_dict)
+	#主类目下的所有节点以及节点的同义词，作为候选词集合category_domain_set
 	category_domain_set = set([])
-	category_delegate_domain_set = node_children_dict[category_name]
+	node_children_dict = createNodeChildrenDict(category_child_dict)
+	category_delegate_domain_set = node_children_dict[main_category_name]
 	for category in category_delegate_domain_set:
 		if category in category_synonyms_dict.keys():
 			category_domain_set |= category_synonyms_dict[category][1]
-	category_domain_set |= node_children_dict[category_name]
-
+	category_domain_set |= node_children_dict[main_category_name]
 
 	#level3候选词
-	level3_category_set = getNextLevelCategorySet(category_synonyms_dict,category_child_dict,category_name)
+	level3_category_set = getNextLevelCategorySet(category_synonyms_dict,category_child_dict,main_category_name)
 	for level3_category in level3_category_set:
 		if u'[' in level3_category and u']' in level3_category:
 			level3_category_set = level3_category_set - set([level3_category])
@@ -52,8 +49,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 
 	#未被匹配到的app
 	others_app = {}
-
-	print 'reading app json'
+	#遍历json
 	infile = open('../data/'+category_id+'.json','rb')
 	for row in infile:
 		output_dict = {}
@@ -63,19 +59,31 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 		app_name = json_obj["title"]
 		app_brief = json_obj["brief"]
 		app_download = int(json_obj["download_times"])
-		# app_brief = app_brief.split(u"联系我们")[0]
 		app_brief_seg = [word for word in jieba.cut(app_brief) if word not in stopword_set and text_process.isChinese(word)]
 		
 		output_dict["soft_id"] = app_id
 		output_dict["content"] = {}
 
+		#推导词匹配
+		indicators = set([])
+		for category in category_indicator_dict.keys():
+			for indicator in category_indicator_dict[category]:
+				indicator_syn_set = set([indicator])
+				if indicator in category_synonyms_dict.keys():
+					indicator_syn_set |= category_synonyms_dict[indicator][1]
+				for indi in indicator_syn_set:
+					if indi in app_name+" "+app_brief:
+						if indi in category_synonyms_dict.keys():
+							indicators.add(category_synonyms_dict[indi][0])
+						else:
+							indicators.add(indi)
+
 		#情感词匹配
 		for comment_word in comment_category_set:
 			if comment_word in app_name or comment_word in app_brief:
-				# tag_recommend_set.add(comment_word)
 				output_dict.setdefault("character",[]).append(comment_word)
 
-		#非情感词匹配
+		#对主类目下的候选词进行匹配
 		for category in category_domain_set:
 			#如果候选词出现在标题或描述文本中
 			if category in app_name or category in app_brief:
@@ -105,20 +113,18 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 						output_dict.setdefault(parent_name,[]).append(category)
 						tag_recommend_set.add(parent_name)
 
-		#通过判断子类匹配个数确定是否是这个类目
+		#对没有匹配到的节点，通过判断其所有子节点匹配个数确定是否是这个类目
 		unmatch_node_set = category_delegate_domain_set - tag_recommend_set
 		for unmatch_node in unmatch_node_set:
-			unmatch_node = category_synonyms_dict[unmatch_node.lstrip('[').rstrip(']')][0]
+			unmatch_node = category_synonyms_dict[unmatch_node][0]
 			unmatch_node_children = node_children_dict[unmatch_node]
-			match_children = unmatch_node_children&tag_recommend_set
-			if len(match_children)>=3:
-				# if app_id == 701514:
-				# 	print app_name
-				# 	print unmatch_node
-				# 	print ' '.join(match_children)
+			if unmatch_node in category_indicator_dict.keys():
+				unmatch_node_children |= category_indicator_dict[unmatch_node]
+			match_children = unmatch_node_children&(tag_recommend_set|indicators)
+			if len(match_children) >= 3:
 				tag_recommend_set.add(unmatch_node)
 
-		#找出匹配到的三四级类目词
+
 		level3_match_category_set = set([])
 		level4_match_category_set = set([])
 		for tag in [tag for tag in tag_recommend_set if tag in level3_category_set]:
@@ -126,6 +132,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 		for tag in [tag for tag in tag_recommend_set if tag in level4_category_set]:
 			level4_match_category_set.add(tag)
 		
+		#找出匹配到的三四级类目词
 		is_match_level3_level4 = False
 		for tag in tag_recommend_set:
 
@@ -151,6 +158,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 							if tag in node_children_dict[level4_match_category]:
 								output_dict["content"].setdefault(level3_match_category,{}).setdefault(level4_match_category,[]).append(tag)
 
+		#如果三四级类目都匹配到，则输出
  		if is_match_level3_level4:
  			outfile_json.write(json.dumps(output_dict,ensure_ascii=False)+'\r\n')
  		else:
@@ -160,34 +168,25 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 		outfile_txt.write(' '.join(tag_recommend_set))
 		outfile_txt.write('\r\n')
 
+	#剩下没有匹配到的按下载量排序，输出
 	sorted_list = sorted(others_app.items(),key=lambda p:p[1][0],reverse=True)
 	outfile_others = open('others.txt','wb')
 	for val in sorted_list:
 		outfile_others.write(val[0]+'<@>'+val[1][1]+'\r\n')
 
-#给定query，获取其下一级的类目词
+#给定query，获取其下一级的类目词，包括同义词
 def getNextLevelCategorySet(category_synonyms_dict,category_child_dict,query):
 	next_level_category_set = set([])
-	#查询节点的同义词集合
-	query_syn_set = set([query])
-	if query in category_synonyms_dict.keys():
-		query_syn_set = category_synonyms_dict[query][1]
-	for query_syn in query_syn_set:
-		if query_syn not in category_child_dict.keys():
-			continue
-		for partial_tuple in category_child_dict[query_syn]:
-			child_name = partial_tuple[0]
-			if child_name in category_synonyms_dict.keys():
-				next_level_category_set |= category_synonyms_dict[child_name][1]
-			else:
-				next_level_category_set |= set([child_name])
+	query_delegate = category_synonyms_dict[query][0]
+	for partial_tuple in category_child_dict[query_delegate]:
+		child_name = partial_tuple[0]
+		next_level_category_set |= category_synonyms_dict[child_name][1]
 	return next_level_category_set
 
 #向上获取其强联通路径的所有节点，放到strong_parent_set中
 def getNodeListOnStrongPath(to_handle_set,category_parent_dict,strong_parent_set):
 	if len(to_handle_set) == 0:
 		return strong_parent_set
-	# temp_to_handle_set = to_handle_set
 	for parent_tuple in to_handle_set:
 		parent_name = parent_tuple[0]
 		relation = parent_tuple[1]
@@ -197,8 +196,7 @@ def getNodeListOnStrongPath(to_handle_set,category_parent_dict,strong_parent_set
 		to_handle_set = to_handle_set - set([parent_tuple])
 	return getNodeListOnStrongPath(to_handle_set,category_parent_dict,strong_parent_set)
 
-
-#向遍历直到根节点
+#向上遍历直到根节点
 def getNodeListToRoot(to_handle_set,category_parent_dict,parent_set):
 	if len(to_handle_set) == 0:
 		return parent_set
@@ -210,7 +208,7 @@ def getNodeListToRoot(to_handle_set,category_parent_dict,parent_set):
 		to_handle_set = to_handle_set - set([parent_tuple])
 	return getNodeListToRoot(to_handle_set,category_parent_dict,parent_set)
 
-#获取一个节点下面的所有孩子
+#获取一个节点下面的所有孩子(代表词)
 def getNodeChildren(category_child_dict,child_set,to_handle_set):
 	if len(to_handle_set) == 0:
 		return child_set
@@ -222,7 +220,7 @@ def getNodeChildren(category_child_dict,child_set,to_handle_set):
 		to_handle_set = to_handle_set - set([partial_tuple])
 	return getNodeChildren(category_child_dict,child_set,to_handle_set)
 
-#创建节点与其孩子的映射字典
+#创建节点与其所有孩子集合(代表词)的映射字典
 def createNodeChildrenDict(category_child_dict):
 	node_children_dict = {}
 	for category in category_child_dict.keys():
@@ -263,6 +261,7 @@ def getSynonym():
 def getPartial():
 	print 'getting partial relationship'
 	partial_dict = {}
+	category_indicator_dict = {}
 	infile = open('rule_template/partial.rule','rb')
 	for row in infile:
 		row = row.strip().decode('utf-8')
@@ -278,8 +277,12 @@ def getPartial():
 			relation_weight = 1
 			master = row.split('>')[0]
 			slaver = row.split('>')[1]
-		partial_dict.setdefault(master,set([])).add((slaver,relation_weight))
-	return partial_dict
+		if '[' in master and ']' in master:
+			master = master.lstrip('[').rstrip(']')
+			category_indicator_dict.setdefault(master,set([])).add(slaver)
+		else:
+			partial_dict.setdefault(master,set([])).add((slaver,relation_weight))
+	return partial_dict,category_indicator_dict
 
 #获取合并规则
 def getCombine():
@@ -295,7 +298,6 @@ def getCombine():
 	return combine_dict
 
 #获取消除歧义规则
-#例如soft_id=186342
 def getDisambiguation():
 	ambiguation_dict = {}
 	infile = open('rule_template/disambiguation.rule','rb')
@@ -347,7 +349,7 @@ def main(category_id):
 
 	#获取规则模版(同义词，偏序关系，组合关系，情感词，歧义词)
 	category_synonyms_dict = getSynonym()
-	partial_dict = getPartial()
+	partial_dict,category_indicator_dict = getPartial()
 	combine_dict = getCombine()
 	comment_category_set = getCommenCategorySet()
 	ambiguation_dict = getDisambiguation()
@@ -356,7 +358,7 @@ def main(category_id):
 	category_parent_dict,category_child_dict,category_synonyms_dict = createCategoryTree(partial_dict,combine_dict,category_synonyms_dict)
 
 	#标签推荐
-	recommendTag(category_id,category_parent_dict,category_child_dict,category_synonyms_dict,comment_category_set,ambiguation_dict)
+	recommendTag(category_id,category_parent_dict,category_child_dict,category_synonyms_dict,category_indicator_dict,comment_category_set,ambiguation_dict)
 
 if __name__ == '__main__':
 	category_id = u"12"
