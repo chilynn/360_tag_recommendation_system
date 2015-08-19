@@ -8,14 +8,14 @@ import itertools
 
 #类目id与类目名称映射
 def cidToName(category_id):
-	return u'通讯社交'
+	# return u'通讯社交'
+	return u"金融理财"
 
 #标签推荐
 def recommendTag(category_id,category_parent_dict,category_child_dict,category_synonyms_dict,category_indicator_dict,comment_category_set,ambiguation_dict):
 	#待处理的主类目
 	main_category_name = cidToName(category_id)
-	
-	outfile_txt = open('tag_recommend_result.txt','wb')
+
 	outfile_json = open('tag_recommend_result.json','wb')
 
 	jieba.load_userdict('../../../data/jieba_userdict.txt')
@@ -29,23 +29,6 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 		if category in category_synonyms_dict.keys():
 			category_domain_set |= category_synonyms_dict[category][1]
 	category_domain_set |= node_children_dict[main_category_name]
-
-	#level3候选词
-	level3_category_set = getNextLevelCategorySet(category_synonyms_dict,category_child_dict,main_category_name)
-	for level3_category in level3_category_set:
-		if u'[' in level3_category and u']' in level3_category:
-			level3_category_set = level3_category_set - set([level3_category])
-	#level4候选词
-	level4_category_set = set([])
-	for level3_category in level3_category_set:
-		level4_category_set = level4_category_set | getNextLevelCategorySet(category_synonyms_dict,category_child_dict,level3_category)
-		for level4_category in level4_category_set:
-			if u'[' in level4_category and u']' in level4_category:
-				level4_category_set = level4_category_set - set([level4_category])
-
-	print ' '.join(level3_category_set)
-	print ' '.join(level4_category_set)
-
 
 	#未被匹配到的app
 	others_app = {}
@@ -123,56 +106,52 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 			match_children = unmatch_node_children&(tag_recommend_set|indicators)
 			if len(match_children) >= 3:
 				tag_recommend_set.add(unmatch_node)
-
-
-		level3_match_category_set = set([])
-		level4_match_category_set = set([])
-		for tag in [tag for tag in tag_recommend_set if tag in level3_category_set]:
-			level3_match_category_set.add(tag)
-		for tag in [tag for tag in tag_recommend_set if tag in level4_category_set]:
-			level4_match_category_set.add(tag)
 		
-		#找出匹配到的三四级类目词
-		is_match_level3_level4 = False
+		#构建输出字典
+		top_level_list = getNextLevelCategorySet(category_synonyms_dict,category_child_dict,main_category_name)
+		content = {}
 		for tag in tag_recommend_set:
+			content[tag] = {}
+		for tag in tag_recommend_set:
+			root_to_tag_path_node_set = getNodeListToRoot(category_parent_dict[tag],category_parent_dict,set([]))
+			root_to_tag_path_node_set.add(tag)
+			if len(root_to_tag_path_node_set&tag_recommend_set) == len(root_to_tag_path_node_set):
+				for node in root_to_tag_path_node_set:
+					for partial_tuple in category_parent_dict[node]:
+						parent_name = partial_tuple[0]
+						if parent_name == main_category_name:
+							continue
+						if parent_name in content.keys():
+							content[parent_name][node] = content[node]
+		
+		for top_level in content.keys():
+			if top_level not in top_level_list:
+				del content[top_level]
 
-			#level3
-			if tag in level3_match_category_set:
-				output_dict["content"].setdefault(tag,{})
-			
-			#level4
-			if tag in level4_match_category_set:
-				for level3_match_category in [level3_match_category for level3_match_category in level3_match_category_set]:
-					level3_match_category = category_synonyms_dict[level3_match_category][0]
-					if tag in node_children_dict[level3_match_category]:
-						output_dict["content"].setdefault(level3_match_category,{}).setdefault(tag,[])
-						is_match_level3_level4 = True
-	
-			#低于level3,level4的category
-			if tag not in level3_match_category_set or tag not in level4_match_category_set:
-				for level3_match_category in [level3_match_category for level3_match_category in level3_match_category_set]:
-					level3_match_category = category_synonyms_dict[level3_match_category][0]
-					if tag in node_children_dict[level3_match_category]:
-						for level4_match_category in [level4_match_category for level4_match_category in level4_match_category_set]:
-							level4_match_category = category_synonyms_dict[level4_match_category][0]
-							if tag in node_children_dict[level4_match_category]:
-								output_dict["content"].setdefault(level3_match_category,{}).setdefault(level4_match_category,[]).append(tag)
-
-		#如果三四级类目都匹配到，则输出
- 		if is_match_level3_level4:
- 			outfile_json.write(json.dumps(output_dict,ensure_ascii=False)+'\r\n')
- 		else:
- 			others_app.setdefault(app_name,[app_download,' '.join(app_brief_seg)])
-
-		outfile_txt.write(str(app_id)+'<@>'+app_name+'<@>'+' '.join(app_brief_seg)+'<@>')
-		outfile_txt.write(' '.join(tag_recommend_set))
-		outfile_txt.write('\r\n')
+		output_dict['content'] = content
+		
+		if len(content.keys()) != 0:
+			outfile_json.write(json.dumps(output_dict,ensure_ascii=False)+'\r\n')
+		else:
+			others_app.setdefault(app_name,[app_download,' '.join(app_brief_seg)])
 
 	#剩下没有匹配到的按下载量排序，输出
 	sorted_list = sorted(others_app.items(),key=lambda p:p[1][0],reverse=True)
 	outfile_others = open('others.txt','wb')
 	for val in sorted_list:
 		outfile_others.write(val[0]+'<@>'+val[1][1]+'\r\n')
+
+	#统计词频
+	word_fre = {}
+	outfile_others_word = open('others_word.txt','wb')
+	for app in others_app.keys():
+		for word in others_app[app][1].split():
+			word_fre.setdefault(word,0)
+			word_fre[word] += 1
+	sorted_list = sorted(word_fre.items(),key=lambda p:p[1],reverse=True)
+	for val in sorted_list:
+		outfile_others_word.write(val[0]+','+str(val[1])+'\r\n')
+
 
 #给定query，获取其下一级的类目词，包括同义词
 def getNextLevelCategorySet(category_synonyms_dict,category_child_dict,query):
@@ -361,6 +340,6 @@ def main(category_id):
 	recommendTag(category_id,category_parent_dict,category_child_dict,category_synonyms_dict,category_indicator_dict,comment_category_set,ambiguation_dict)
 
 if __name__ == '__main__':
-	category_id = u"12"
+	category_id = u"102139"
 	main(category_id)
 
