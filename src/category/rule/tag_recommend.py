@@ -32,6 +32,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 			category_domain_set |= category_synonyms_dict[category][1]
 	category_domain_set |= node_children_dict[category_name]
 
+
 	#level3候选词
 	level3_category_set = getNextLevelCategorySet(category_synonyms_dict,category_child_dict,category_name)
 	for level3_category in level3_category_set:
@@ -109,7 +110,12 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 		for unmatch_node in unmatch_node_set:
 			unmatch_node = category_synonyms_dict[unmatch_node.lstrip('[').rstrip(']')][0]
 			unmatch_node_children = node_children_dict[unmatch_node]
-			if len(unmatch_node_children&tag_recommend_set)>=3:
+			match_children = unmatch_node_children&tag_recommend_set
+			if len(match_children)>=3:
+				# if app_id == 701514:
+				# 	print app_name
+				# 	print unmatch_node
+				# 	print ' '.join(match_children)
 				tag_recommend_set.add(unmatch_node)
 
 		#找出匹配到的三四级类目词
@@ -135,7 +141,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 						output_dict["content"].setdefault(level3_match_category,{}).setdefault(tag,[])
 						is_match_level3_level4 = True
 	
-			#lower than level3.4
+			#低于level3,level4的category
 			if tag not in level3_match_category_set or tag not in level4_match_category_set:
 				for level3_match_category in [level3_match_category for level3_match_category in level3_match_category_set]:
 					level3_match_category = category_synonyms_dict[level3_match_category][0]
@@ -191,6 +197,8 @@ def getNodeListOnStrongPath(to_handle_set,category_parent_dict,strong_parent_set
 		to_handle_set = to_handle_set - set([parent_tuple])
 	return getNodeListOnStrongPath(to_handle_set,category_parent_dict,strong_parent_set)
 
+
+#向遍历直到根节点
 def getNodeListToRoot(to_handle_set,category_parent_dict,parent_set):
 	if len(to_handle_set) == 0:
 		return parent_set
@@ -224,15 +232,6 @@ def createNodeChildrenDict(category_child_dict):
 			node_children_dict[category].add(child)
 	return node_children_dict
 
-#获取地理位置词
-def getLocationCategorySet():
-	print 'getting comment category'
-	location_category_set = set([])
-	infile = open('rule_template/location.rule','rb')
-	for row in infile:
-		location_category_set.add(row.strip().decode('utf-8'))
-	return location_category_set
-
 #获取情感词
 def getCommenCategorySet():
 	print 'getting comment category'
@@ -241,15 +240,6 @@ def getCommenCategorySet():
 	for row in infile:
 		comment_category_set.add(row.strip().decode('utf-8'))
 	return comment_category_set
-
-#获取类目停用词
-def getFilterCategorySet():
-	print 'getting filtered category'
-	filter_category_set = set([])
-	infile = open('rule_template/category_filter.rule','rb')
-	for row in infile:
-		filter_category_set.add(row.strip().decode('utf-8'))
-	return filter_category_set
 
 #获取同义词
 def getSynonym():
@@ -299,10 +289,9 @@ def getCombine():
 	for row in infile:
 		row = row.strip().decode('utf-8')
 		main_category = row.split('==')[0]
-		if main_category.isdigit():
-			continue
 		sub_category_set = set(row.split('==')[1].split(','))
-		combine_dict.setdefault(main_category,sub_category_set)
+		for sub_category in sub_category_set:
+			combine_dict.setdefault(main_category,set([])).add((sub_category,3))
 	return combine_dict
 
 #获取消除歧义规则
@@ -317,21 +306,16 @@ def getDisambiguation():
 		ambiguation_dict.setdefault(ambiguous_word,set(ambiguous_situations))
 	return ambiguation_dict
 
-#弱偏序1，强偏序2，合并3
-#维护与父节点的关系
-def createCategoryTree(partial_dict,combine_dict,category_synonyms_dict):
-	category_parent_dict = {}
-	category_child_dict = {}
-	
-	#偏序词
-	for master in partial_dict.keys():
+#填充层次结构树
+def fillCategoryTree(category_parent_dict,category_child_dict,parent_child_dict,category_synonyms_dict):
+	for master in parent_child_dict.keys():
 		if master in category_synonyms_dict.keys():
 			master_delegate = category_synonyms_dict[master][0]
 		else:
 			master_delegate = master
 			category_synonyms_dict.setdefault(master_delegate,[master_delegate,set([master_delegate])])
 		category_parent_dict.setdefault(master_delegate,set([]))
-		for partial_tuple in partial_dict[master]:
+		for partial_tuple in parent_child_dict[master]:
 			slaver = partial_tuple[0]
 			relation = partial_tuple[1]
 			if slaver in category_synonyms_dict.keys():
@@ -342,41 +326,30 @@ def createCategoryTree(partial_dict,combine_dict,category_synonyms_dict):
 			category_parent_dict.setdefault(slaver_delegate,set([])).add((master_delegate,relation))
 			category_child_dict.setdefault(slaver_delegate,set([]))
 			category_child_dict.setdefault(master_delegate,set([])).add((slaver_delegate,relation))
-	
-	#合并词
-	for master in combine_dict.keys():
-		if master in category_synonyms_dict.keys():
-			master_delegate = category_synonyms_dict[master][0]
-		else:
-			master_delegate = master
-			category_synonyms_dict.setdefault(master_delegate,[master_delegate,set([master_delegate])])
-		category_parent_dict.setdefault(master_delegate,set([]))
-		for slaver in combine_dict[master]:
-			if slaver in category_synonyms_dict.keys():
-				slaver_delegate = category_synonyms_dict[slaver][0]
-			else:
-				slaver_delegate = slaver
-				category_synonyms_dict.setdefault(slaver_delegate,[slaver_delegate,set([slaver_delegate])])
-			category_parent_dict.setdefault(slaver_delegate,set([])).add((master_delegate,3))
-			category_child_dict.setdefault(slaver_delegate,set([]))
-			category_child_dict.setdefault(master_delegate,set([])).add((slaver_delegate,3))
+	return 	category_parent_dict,category_child_dict
 
+#构建层次结构树
+def createCategoryTree(partial_dict,combine_dict,category_synonyms_dict):
+	#category与父类关系
+	category_parent_dict = {}
+	#category与子类关系
+	category_child_dict = {}
+	#偏序关系
+	category_parent_dict,category_child_dict = fillCategoryTree(category_parent_dict,category_child_dict,partial_dict,category_synonyms_dict)
+	#合并关系
+	category_parent_dict,category_child_dict = fillCategoryTree(category_parent_dict,category_child_dict,combine_dict,category_synonyms_dict)
+	
 	return category_parent_dict,category_child_dict,category_synonyms_dict
 
 def main(category_id):
 	reload(sys)
 	sys.setdefaultencoding('utf-8')
 
-	#暂时不处理的词放在filter_category_set中
-	filter_category_set = getFilterCategorySet() #类目停用词
-	location_category_set = getLocationCategorySet() #地理位置词
-	comment_category_set = getCommenCategorySet() #情感词
-	filter_category_set = filter_category_set | comment_category_set | location_category_set
-
-	#获取规则模版
+	#获取规则模版(同义词，偏序关系，组合关系，情感词，歧义词)
 	category_synonyms_dict = getSynonym()
 	partial_dict = getPartial()
 	combine_dict = getCombine()
+	comment_category_set = getCommenCategorySet()
 	ambiguation_dict = getDisambiguation()
 
 	#从规则库中构建类目关系树

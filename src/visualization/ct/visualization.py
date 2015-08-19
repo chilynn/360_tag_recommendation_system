@@ -52,27 +52,21 @@ def getCombine():
 	for row in infile:
 		row = row.strip().decode('utf-8')
 		main_category = row.split('==')[0]
-		if main_category.isdigit():
-			continue
 		sub_category_set = set(row.split('==')[1].split(','))
-		combine_dict.setdefault(main_category,sub_category_set)
+		for sub_category in sub_category_set:
+			combine_dict.setdefault(main_category,set([])).add((sub_category,3))
 	return combine_dict
 
-#弱偏序1，强偏序2，合并3
-#维护与父节点的关系
-def createCategoryTree(partial_dict,combine_dict,category_synonyms_dict):
-	category_parent_dict = {}
-	category_child_dict = {}
-	
-	#偏序词
-	for master in partial_dict.keys():
+#填充层次结构树
+def fillCategoryTree(category_parent_dict,category_child_dict,parent_child_dict,category_synonyms_dict):
+	for master in parent_child_dict.keys():
 		if master in category_synonyms_dict.keys():
 			master_delegate = category_synonyms_dict[master][0]
 		else:
 			master_delegate = master
 			category_synonyms_dict.setdefault(master_delegate,[master_delegate,set([master_delegate])])
 		category_parent_dict.setdefault(master_delegate,set([]))
-		for partial_tuple in partial_dict[master]:
+		for partial_tuple in parent_child_dict[master]:
 			slaver = partial_tuple[0]
 			relation = partial_tuple[1]
 			if slaver in category_synonyms_dict.keys():
@@ -83,25 +77,18 @@ def createCategoryTree(partial_dict,combine_dict,category_synonyms_dict):
 			category_parent_dict.setdefault(slaver_delegate,set([])).add((master_delegate,relation))
 			category_child_dict.setdefault(slaver_delegate,set([]))
 			category_child_dict.setdefault(master_delegate,set([])).add((slaver_delegate,relation))
-	
-	#合并词
-	for master in combine_dict.keys():
-		if master in category_synonyms_dict.keys():
-			master_delegate = category_synonyms_dict[master][0]
-		else:
-			master_delegate = master
-			category_synonyms_dict.setdefault(master_delegate,[master_delegate,set([master_delegate])])
-		category_parent_dict.setdefault(master_delegate,set([]))
-		for slaver in combine_dict[master]:
-			if slaver in category_synonyms_dict.keys():
-				slaver_delegate = category_synonyms_dict[slaver][0]
-			else:
-				slaver_delegate = slaver
-				category_synonyms_dict.setdefault(slaver_delegate,[slaver_delegate,set([slaver_delegate])])
-			category_parent_dict.setdefault(slaver_delegate,set([])).add((master_delegate,3))
-			category_child_dict.setdefault(slaver_delegate,set([]))
-			category_child_dict.setdefault(master_delegate,set([])).add((slaver_delegate,3))
+	return 	category_parent_dict,category_child_dict
 
+#构建层次结构树
+def createCategoryTree(partial_dict,combine_dict,category_synonyms_dict):
+	#category与父类关系
+	category_parent_dict = {}
+	#category与子类关系
+	category_child_dict = {}
+	#偏序关系
+	category_parent_dict,category_child_dict = fillCategoryTree(category_parent_dict,category_child_dict,partial_dict,category_synonyms_dict)
+	#合并关系
+	category_parent_dict,category_child_dict = fillCategoryTree(category_parent_dict,category_child_dict,combine_dict,category_synonyms_dict)
 	return category_parent_dict,category_child_dict,category_synonyms_dict
 
 #转化为json格式
@@ -150,7 +137,7 @@ def main():
 	reload(sys)
 	sys.setdefaultencoding('utf-8')
 
-	#获取规则模版
+	#获取规则模版(同义词，偏序关系，组合关系)
 	category_synonyms_dict = getSynonym()
 	partial_dict = getPartial()
 	combine_dict = getCombine()
