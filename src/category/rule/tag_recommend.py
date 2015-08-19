@@ -26,23 +26,17 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 	#构建候选词集合，category_domain_set
 	node_children_dict = createNodeChildrenDict(category_child_dict)
 	category_domain_set = set([])
-	for category in node_children_dict[category_name]:
+	category_delegate_domain_set = node_children_dict[category_name]
+	for category in category_delegate_domain_set:
 		if category in category_synonyms_dict.keys():
 			category_domain_set |= category_synonyms_dict[category][1]
 	category_domain_set |= node_children_dict[category_name]
-
-	category_supportor_dict = {}
 
 	#level3候选词
 	level3_category_set = getNextLevelCategorySet(category_synonyms_dict,category_child_dict,category_name)
 	for level3_category in level3_category_set:
 		if u'[' in level3_category and u']' in level3_category:
 			level3_category_set = level3_category_set - set([level3_category])
-			category_supportor_dict.setdefault(level3_category, getNextLevelCategorySet(category_synonyms_dict,category_child_dict,level3_category))
-		# if u'(' in level3_category and u')' in level3_category:
-		# 	level3_category_set = level3_category_set | getNextLevelCategorySet(category_synonyms_dict,category_child_dict,level3_category)
-		# 	level3_category_set = level3_category_set - set([level3_category])
-
 	#level4候选词
 	level4_category_set = set([])
 	for level3_category in level3_category_set:
@@ -50,17 +44,10 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 		for level4_category in level4_category_set:
 			if u'[' in level4_category and u']' in level4_category:
 				level4_category_set = level4_category_set - set([level4_category])
-				category_supportor_dict.setdefault(level4_category, getNextLevelCategorySet(category_synonyms_dict,category_child_dict,level4_category))
-			# if u'(' in level4_category and u')' in level4_category:
-			# 	level4_category_set = level4_category_set | getNextLevelCategorySet(category_synonyms_dict,category_child_dict,level4_category)
-			# 	level4_category_set = level4_category_set - set([level4_category])
 
 	print ' '.join(level3_category_set)
 	print ' '.join(level4_category_set)
 
-	# for category in category_supportor_dict.keys():
-	# 	print category
-	# 	print ' '.join(category_supportor_dict[category])
 
 	#未被匹配到的app
 	others_app = {}
@@ -75,6 +62,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 		app_name = json_obj["title"]
 		app_brief = json_obj["brief"]
 		app_download = int(json_obj["download_times"])
+		# app_brief = app_brief.split(u"联系我们")[0]
 		app_brief_seg = [word for word in jieba.cut(app_brief) if word not in stopword_set and text_process.isChinese(word)]
 		
 		output_dict["soft_id"] = app_id
@@ -104,7 +92,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 				tag_recommend_set.add(category_delegate)
 				
 				#向上遍历，找出与该节点是强关系的父类
-				strong_parent_set = getNodeListToRoot(category_parent_dict[category_delegate],category_parent_dict,set([]))
+				strong_parent_set = getNodeListOnStrongPath(category_parent_dict[category_delegate],category_parent_dict,set([]))
 				tag_recommend_set = tag_recommend_set | strong_parent_set
 
 				for partial_tuple in category_parent_dict[category_delegate]:
@@ -116,6 +104,14 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 						output_dict.setdefault(parent_name,[]).append(category)
 						tag_recommend_set.add(parent_name)
 
+		#通过判断子类匹配个数确定是否是这个类目
+		unmatch_node_set = category_delegate_domain_set - tag_recommend_set
+		for unmatch_node in unmatch_node_set:
+			unmatch_node = category_synonyms_dict[unmatch_node.lstrip('[').rstrip(']')][0]
+			unmatch_node_children = node_children_dict[unmatch_node]
+			if len(unmatch_node_children&tag_recommend_set)>=3:
+				tag_recommend_set.add(unmatch_node)
+
 		#找出匹配到的三四级类目词
 		level3_match_category_set = set([])
 		level4_match_category_set = set([])
@@ -123,43 +119,6 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 			level3_match_category_set.add(tag)
 		for tag in [tag for tag in tag_recommend_set if tag in level4_category_set]:
 			level4_match_category_set.add(tag)
-
-		# #通过判断子类匹配个数确定是否是这个类目
-		# for category in (level3_category_set - level3_match_category_set):
-		# 	match_counter = 0
-		# 	children_set = node_children_dict[category_synonyms_dict[category][0]]
-		# 	for child in children_set:
-		# 		if child in app_name+' '+app_brief:
-		# 			match_counter += 1
-		# 	if match_counter >= 3:
-		# 		tag_recommend_set.add(category_synonyms_dict[category][0])
-		# 		level3_match_category_set.add(category_synonyms_dict[category][0])
-	
-		# for category in (level4_category_set - level4_match_category_set):
-		# 	match_counter = 0
-		# 	children_set = node_children_dict[category_synonyms_dict[category][0]]
-		# 	for child in children_set:
-		# 		if child in app_name+' '+app_brief:
-		# 			match_counter += 1
-		# 	if match_counter >= 3:
-		# 		tag_recommend_set.add(category_synonyms_dict[category][0])
-		# 		level4_match_category_set.add(category_synonyms_dict[category][0])
-
-		# for category in category_supportor_dict.keys():
-		# 	supportors = category_supportor_dict[category]
-		# 	category_format = category_synonyms_dict[category.lstrip('[').rstrip(']')][0]
-		# 	if category_format not in level3_match_category_set | level4_match_category_set:
-		# 		match_counter = 0
-		# 		for supportor in supportors:
-		# 			if supportor in app_name+' '+app_brief:
-		# 				match_counter += 1
-		# 		if match_counter >= 3:
-		# 			tag_recommend_set.add(category_format)
-		# 			if category_format in level3_category_set:
-		# 				level3_match_category_set.add(category_format)
-		# 			elif category_format in level4_category_set:
-		# 				level4_match_category_set.add(category_format)
-
 		
 		is_match_level3_level4 = False
 		for tag in tag_recommend_set:

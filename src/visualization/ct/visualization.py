@@ -140,9 +140,9 @@ def convertToJsonTree(category_parent_dict,category_synonyms_dict):
 		del node_dict[category]['parent']
 
     #去除不与根节点相连的
-	for node_name in tree.keys():	
-		if tree[node_name]['is_connect_root'] != 1:
-			del tree[node_name]
+	for node_name in node_dict.keys():	
+		if node_dict[node_name]['is_connect_root'] != 1:
+			del node_dict[node_name]
 
 	return node_dict
 
