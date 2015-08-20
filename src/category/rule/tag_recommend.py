@@ -8,8 +8,9 @@ import itertools
 
 #类目id与类目名称映射
 def cidToName(category_id):
-	# return u'通讯社交'
-	return u"金融理财"
+	return u"运动健康";
+	# return u"通讯社交"
+	# return u"金融理财"
 
 #标签推荐
 def recommendTag(category_id,category_parent_dict,category_child_dict,category_synonyms_dict,category_indicator_dict,comment_category_set,ambiguation_dict):
@@ -30,11 +31,14 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 			category_domain_set |= category_synonyms_dict[category][1]
 	category_domain_set |= node_children_dict[main_category_name]
 
+	match_counter = 0
+	all_app_counter = 0
 	#未被匹配到的app
 	others_app = {}
 	#遍历json
 	infile = open('../data/'+category_id+'.json','rb')
 	for row in infile:
+		all_app_counter += 1
 		output_dict = {}
 		tag_recommend_set = set([])
 		json_obj = json.loads(row.strip())
@@ -44,7 +48,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 		app_download = int(json_obj["download_times"])
 		app_brief_seg = [word for word in jieba.cut(app_brief) if word not in stopword_set and text_process.isChinese(word)]
 		
-		output_dict["soft_id"] = app_id
+		output_dict["id"] = app_id
 		output_dict["content"] = {}
 
 		#推导词匹配
@@ -77,7 +81,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 						if ambiguous_situation in app_name or ambiguous_situation in app_brief:
 							is_ambiguous = True
 				if is_ambiguous:
-					continue			
+					continue		
 
 				#该添加节点的代表词
 				category_delegate = category_synonyms_dict[category][0]
@@ -97,13 +101,14 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 						tag_recommend_set.add(parent_name)
 
 		#对没有匹配到的节点，通过判断其所有子节点匹配个数确定是否是这个类目
+		tag_recommend_set_copy = tag_recommend_set
 		unmatch_node_set = category_delegate_domain_set - tag_recommend_set
 		for unmatch_node in unmatch_node_set:
 			unmatch_node = category_synonyms_dict[unmatch_node][0]
 			unmatch_node_children = node_children_dict[unmatch_node]
 			if unmatch_node in category_indicator_dict.keys():
 				unmatch_node_children |= category_indicator_dict[unmatch_node]
-			match_children = unmatch_node_children&(tag_recommend_set|indicators)
+			match_children = unmatch_node_children&(tag_recommend_set_copy|indicators)
 			if len(match_children) >= 3:
 				tag_recommend_set.add(unmatch_node)
 		
@@ -112,29 +117,34 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 		content = {}
 		for tag in tag_recommend_set:
 			content[tag] = {}
-		for tag in tag_recommend_set:
-			root_to_tag_path_node_set = getNodeListToRoot(category_parent_dict[tag],category_parent_dict,set([]))
-			root_to_tag_path_node_set.add(tag)
-			if len(root_to_tag_path_node_set&tag_recommend_set) == len(root_to_tag_path_node_set):
-				for node in root_to_tag_path_node_set:
-					for partial_tuple in category_parent_dict[node]:
-						parent_name = partial_tuple[0]
-						if parent_name == main_category_name:
-							continue
-						if parent_name in content.keys():
-							content[parent_name][node] = content[node]
+		# for tag in tag_recommend_set:
+		# 	root_to_tag_path_node_set = getNodeListToRoot(category_parent_dict[tag],category_parent_dict,set([]))
+		# 	root_to_tag_path_node_set.add(tag)
+		# 	if tag == u"减肥" and app_id == 209086:
+		# 		print ' '.join(root_to_tag_path_node_set)
+		# 	if len(root_to_tag_path_node_set&tag_recommend_set) == len(root_to_tag_path_node_set):
+		for node in tag_recommend_set:
+			for partial_tuple in category_parent_dict[node]:
+				parent_name = partial_tuple[0]
+				if parent_name == main_category_name:
+					continue
+				if parent_name in content.keys():
+					content[parent_name][node] = content[node]
 		
 		for top_level in content.keys():
 			if top_level not in top_level_list:
 				del content[top_level]
 
 		output_dict['content'] = content
-		
-		if len(content.keys()) != 0:
-			outfile_json.write(json.dumps(output_dict,ensure_ascii=False)+'\r\n')
+
+		if len(content.keys()) !=0:
+			match_counter += 1
+			if app_download < 10000000:
+				outfile_json.write(json.dumps(output_dict,ensure_ascii=False)+'\r\n')
 		else:
 			others_app.setdefault(app_name,[app_download,' '.join(app_brief_seg)])
 
+	print 1.0*match_counter/all_app_counter
 	#剩下没有匹配到的按下载量排序，输出
 	sorted_list = sorted(others_app.items(),key=lambda p:p[1][0],reverse=True)
 	outfile_others = open('others.txt','wb')
@@ -181,7 +191,6 @@ def getNodeListToRoot(to_handle_set,category_parent_dict,parent_set):
 		return parent_set
 	for parent_tuple in to_handle_set:
 		parent_name = parent_tuple[0]
-		relation = parent_tuple[1]
 		parent_set.add(parent_name)
 		to_handle_set = to_handle_set | category_parent_dict[parent_name]
 		to_handle_set = to_handle_set - set([parent_tuple])
@@ -335,11 +344,13 @@ def main(category_id):
 
 	#从规则库中构建类目关系树
 	category_parent_dict,category_child_dict,category_synonyms_dict = createCategoryTree(partial_dict,combine_dict,category_synonyms_dict)
-
+	
 	#标签推荐
 	recommendTag(category_id,category_parent_dict,category_child_dict,category_synonyms_dict,category_indicator_dict,comment_category_set,ambiguation_dict)
 
 if __name__ == '__main__':
-	category_id = u"102139"
+	# category_id = u"102139"
+	category_id = u"999"
+	# category_id = u"12"
 	main(category_id)
 
