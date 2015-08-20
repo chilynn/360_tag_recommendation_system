@@ -40,7 +40,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 	for row in infile:
 		all_app_counter += 1
 		output_dict = {}
-		tag_recommend_set = set([])
+		
 		json_obj = json.loads(row.strip())
 		app_id = int(json_obj["id"])
 		app_name = json_obj["title"]
@@ -69,8 +69,9 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 		for comment_word in comment_category_set:
 			if comment_word in app_name or comment_word in app_brief:
 				output_dict.setdefault("character",[]).append(comment_word)
-
+		
 		#对主类目下的候选词进行匹配
+		tag_recommend_set = set([])
 		for category in category_domain_set:
 			#如果候选词出现在标题或描述文本中
 			if category in app_name or category in app_brief:
@@ -100,6 +101,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 						output_dict.setdefault(parent_name,[]).append(category)
 						tag_recommend_set.add(parent_name)
 
+
 		#对没有匹配到的节点，通过判断其所有子节点匹配个数确定是否是这个类目
 		tag_recommend_set_copy = tag_recommend_set
 		unmatch_node_set = category_delegate_domain_set - tag_recommend_set
@@ -111,18 +113,12 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 			match_children = unmatch_node_children&(tag_recommend_set_copy|indicators)
 			if len(match_children) >= 3:
 				tag_recommend_set.add(unmatch_node)
-		
+
 		#构建输出字典
 		top_level_list = getNextLevelCategorySet(category_synonyms_dict,category_child_dict,main_category_name)
 		content = {}
 		for tag in tag_recommend_set:
 			content[tag] = {}
-		# for tag in tag_recommend_set:
-		# 	root_to_tag_path_node_set = getNodeListToRoot(category_parent_dict[tag],category_parent_dict,set([]))
-		# 	root_to_tag_path_node_set.add(tag)
-		# 	if tag == u"减肥" and app_id == 209086:
-		# 		print ' '.join(root_to_tag_path_node_set)
-		# 	if len(root_to_tag_path_node_set&tag_recommend_set) == len(root_to_tag_path_node_set):
 		for node in tag_recommend_set:
 			for partial_tuple in category_parent_dict[node]:
 				parent_name = partial_tuple[0]
@@ -139,12 +135,12 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 
 		if len(content.keys()) !=0:
 			match_counter += 1
-			if app_download < 10000000:
-				outfile_json.write(json.dumps(output_dict,ensure_ascii=False)+'\r\n')
+			# if app_download < 10000000:
+			outfile_json.write(json.dumps(output_dict,ensure_ascii=False)+'\r\n')
 		else:
 			others_app.setdefault(app_name,[app_download,' '.join(app_brief_seg)])
 
-	print 1.0*match_counter/all_app_counter
+	print "覆盖率: "+str(1.0*match_counter/all_app_counter)
 	#剩下没有匹配到的按下载量排序，输出
 	sorted_list = sorted(others_app.items(),key=lambda p:p[1][0],reverse=True)
 	outfile_others = open('others.txt','wb')
