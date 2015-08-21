@@ -96,11 +96,22 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 				for partial_tuple in category_parent_dict[category_delegate]:
 					parent_name = partial_tuple[0]
 					relation = partial_tuple[1]
-					#隐节点
-					if u'(' in parent_name and u')' in parent_name and parent_name in category_domain_set:	
-						output_dict.setdefault(parent_name,[]).append(category)
-						tag_recommend_set.add(parent_name)
+
+					# #隐节点
+					# if u'(' in parent_name and u')' in parent_name and parent_name in category_domain_set:	
+					# 	output_dict.setdefault(parent_name,[]).append(category_delegate)
+					# 	tag_recommend_set.add(parent_name)
 		
+		#隐节点
+		for tag in tag_recommend_set:
+			if u'(' in tag and u')' in tag:
+				hidden_node_next_level = getNextLevelCategorySet(category_synonyms_dict,category_child_dict,tag)
+				for hidden_node_next_level_item in hidden_node_next_level:
+					hidden_node_next_level_item = category_synonyms_dict[hidden_node_next_level_item][0]
+					if len(node_children_dict[hidden_node_next_level_item] & tag_recommend_set)>0:
+						tag_recommend_set.add(tag)
+						output_dict.setdefault(tag,[]).append(hidden_node_next_level_item)
+
 		#对没有匹配到的节点，自下而上地判断其所有子节点匹配个数确定是否是这个类目
 		tag_recommend_set = upwardInfer(main_category_name,category_delegate_domain_set,category_synonyms_dict,node_children_dict,category_child_dict,category_indicator_dict,indicators,tag_recommend_set)
 
