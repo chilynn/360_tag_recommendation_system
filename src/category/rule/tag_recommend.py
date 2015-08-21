@@ -100,19 +100,10 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 						hidden_node_list = list(getNextLevelCategorySet(category_synonyms_dict,category_child_dict,parent_name))
 						output_dict.setdefault(parent_name,[]).append(category)
 						tag_recommend_set.add(parent_name)
+		
+		#对没有匹配到的节点，自下而上地判断其所有子节点匹配个数确定是否是这个类目
+		tag_recommend_set = upwardInfer(main_category_name,category_delegate_domain_set,category_synonyms_dict,node_children_dict,category_child_dict,category_indicator_dict,indicators,tag_recommend_set)
 
-
-		#对没有匹配到的节点，通过判断其所有子节点匹配个数确定是否是这个类目
-		tag_recommend_set_copy = tag_recommend_set
-		unmatch_node_set = category_delegate_domain_set - tag_recommend_set
-		for unmatch_node in unmatch_node_set:
-			unmatch_node = category_synonyms_dict[unmatch_node][0]
-			unmatch_node_children = node_children_dict[unmatch_node]
-			if unmatch_node in category_indicator_dict.keys():
-				unmatch_node_children |= category_indicator_dict[unmatch_node]
-			match_children = unmatch_node_children&(tag_recommend_set_copy|indicators)
-			if len(match_children) >= 3:
-				tag_recommend_set.add(unmatch_node)
 
 		#构建输出字典
 		top_level_list = getNextLevelCategorySet(category_synonyms_dict,category_child_dict,main_category_name)
@@ -147,7 +138,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 	for val in sorted_list:
 		outfile_others.write(val[0]+'<@>'+val[1][1]+'\r\n')
 
-	#统计词频
+	#统计没有匹配到的app的词频
 	word_fre = {}
 	outfile_others_word = open('others_word.txt','wb')
 	for app in others_app.keys():
@@ -158,6 +149,48 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 	for val in sorted_list:
 		outfile_others_word.write(val[0]+','+str(val[1])+'\r\n')
 
+
+#向上推导
+def upwardInfer(main_category_name,category_delegate_domain_set,category_synonyms_dict,node_children_dict,category_child_dict,category_indicator_dict,indicators,tag_recommend_set):
+	level_category_dict = {}
+	for node in category_delegate_domain_set:
+		min_depth = getNodeMinDepthGivenRoot(set([main_category_name]),category_synonyms_dict[node][0],category_child_dict,1)
+		level_category_dict.setdefault(min_depth,set()).add(node)
+	max_depth = max(level_category_dict.keys())
+	
+	#从最底层开始匹配
+	for depth in reversed(range(1,max_depth+1)):
+		if depth-1 == 0:
+			continue
+		if depth not in level_category_dict.keys():
+			continue
+		handling_level_category_set = level_category_dict[depth]
+		unmatch_node_set = handling_level_category_set - tag_recommend_set
+		for unmatch_node in unmatch_node_set:
+			unmatch_node_children = node_children_dict[unmatch_node]
+			if unmatch_node in category_indicator_dict.keys():
+				unmatch_node_children |= category_indicator_dict[unmatch_node]
+			match_children = unmatch_node_children&(tag_recommend_set|indicators)
+			if len(match_children) >= 3:
+				tag_recommend_set.add(unmatch_node)
+	return tag_recommend_set
+
+#获取query节点在root节点下的最小深度
+def getNodeMinDepthGivenRoot(root_set,query,category_child_dict,depth):
+	if query not in category_child_dict.keys():
+		return -1
+	if query in root_set:
+		return 0
+	next_root_set = set([])
+	for root in root_set:
+		for child_tuple in category_child_dict[root]:
+			child = child_tuple[0]
+			if child == query:
+				return depth
+			else:	
+				next_root_set.add(child)
+	depth += 1
+	return getNodeMinDepthGivenRoot(next_root_set,query,category_child_dict,depth)
 
 #给定query，获取其下一级的类目词，包括同义词
 def getNextLevelCategorySet(category_synonyms_dict,category_child_dict,query):
@@ -340,7 +373,7 @@ def main(category_id):
 
 	#从规则库中构建类目关系树
 	category_parent_dict,category_child_dict,category_synonyms_dict = createCategoryTree(partial_dict,combine_dict,category_synonyms_dict)
-	
+
 	#标签推荐
 	recommendTag(category_id,category_parent_dict,category_child_dict,category_synonyms_dict,category_indicator_dict,comment_category_set,ambiguation_dict)
 
