@@ -37,7 +37,6 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 	node_children_dict = createNodeChildrenDict(category_child_dict)
 
 	candidate_tag_set,candidate_delegate_tag_set = getCandidateTag(main_category,node_children_dict,category_synonyms_dict)
-	
 	level_category_dict = createLevelCategoryDict(main_category,candidate_tag_set,category_parent_dict,category_child_dict,category_synonyms_dict)
 	for level in level_category_dict.keys():
 		print level
@@ -70,8 +69,6 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 
 		#自下而上匹配
 		for depth in reversed(range(1,max(level_category_dict.keys())+1)):
-			if depth-1 == 0:
-				continue
 			if depth not in level_category_dict.keys():
 				continue
 			current_level_category_set = level_category_dict[depth]
@@ -101,7 +98,6 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 					hidden_node_next_level_item = category_synonyms_dict[hidden_node_next_level_item][0]
 					if hidden_node_next_level_item in tag_recommend_set:
 						output_dict.setdefault(tag,[]).append(hidden_node_next_level_item)
-
 		#去除推导词
 		tag_recommend_set = tag_recommend_set - indicator_set
 
