@@ -33,6 +33,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 
 	match_counter = 0
 	all_app_counter = 0
+
 	#未被匹配到的app
 	others_app = {}
 	#遍历json
@@ -96,14 +97,12 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 					parent_name = partial_tuple[0]
 					relation = partial_tuple[1]
 					#隐节点
-					if u'(' in parent_name and u')' in parent_name:
-						hidden_node_list = list(getNextLevelCategorySet(category_synonyms_dict,category_child_dict,parent_name))
+					if u'(' in parent_name and u')' in parent_name and parent_name in category_domain_set:	
 						output_dict.setdefault(parent_name,[]).append(category)
 						tag_recommend_set.add(parent_name)
 		
 		#对没有匹配到的节点，自下而上地判断其所有子节点匹配个数确定是否是这个类目
 		tag_recommend_set = upwardInfer(main_category_name,category_delegate_domain_set,category_synonyms_dict,node_children_dict,category_child_dict,category_indicator_dict,indicators,tag_recommend_set)
-
 
 		#构建输出字典
 		top_level_list = getNextLevelCategorySet(category_synonyms_dict,category_child_dict,main_category_name)
@@ -148,7 +147,6 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 	sorted_list = sorted(word_fre.items(),key=lambda p:p[1],reverse=True)
 	for val in sorted_list:
 		outfile_others_word.write(val[0]+','+str(val[1])+'\r\n')
-
 
 #向上推导
 def upwardInfer(main_category_name,category_delegate_domain_set,category_synonyms_dict,node_children_dict,category_child_dict,category_indicator_dict,indicators,tag_recommend_set):
