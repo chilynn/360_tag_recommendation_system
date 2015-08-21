@@ -265,22 +265,22 @@ def getPartial():
 			continue
 		#微弱偏序关系0，作推导词，不作tag
 		if "~" in row:
-			relation_weight = 0
+			relation = 0
 			master = row.split("~")[0]
 			slaver = row.split("~")[1]
 			indicator_set.add(slaver)
 		#强偏序关系2
 		elif '>>' in row:
-			relation_weight = 2
+			relation = 2
 			master = row.split('>>')[0]
 			slaver = row.split('>>')[1]
 		#弱偏序关系1
 		else:
-			relation_weight = 1
+			relation = 1
 			master = row.split('>')[0]
 			slaver = row.split('>')[1]
 
-		partial_dict.setdefault(master,set([])).add((slaver,relation_weight))
+		partial_dict.setdefault(master,set([])).add((slaver,relation))
 	return partial_dict,indicator_set
 
 #获取合并规则

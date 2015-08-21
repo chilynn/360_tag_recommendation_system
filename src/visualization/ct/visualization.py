@@ -26,23 +26,32 @@ def getSynonym():
 def getPartial():
 	print 'getting partial relationship'
 	partial_dict = {}
+	indicator_set = set([])
 	infile = open('../../category/rule/rule_template/partial.rule','rb')
 	for row in infile:
 		row = row.strip().decode('utf-8')
 		if row == "":
 			continue
+		#微弱偏序关系0，作推导词，不作tag
+		if "~" in row:
+			relation = 0
+			master = row.split("~")[0]
+			slaver = row.split("~")[1]
+			indicator_set.add(slaver)
 		#强偏序关系2
-		if '>>' in row:
-			relation_weight = 2
+		elif '>>' in row:
+			relation = 2
 			master = row.split('>>')[0]
 			slaver = row.split('>>')[1]
 		#弱偏序关系1
 		else:
-			relation_weight = 1
+			relation = 1
 			master = row.split('>')[0]
 			slaver = row.split('>')[1]
-		partial_dict.setdefault(master,set([])).add((slaver,relation_weight))
-	return partial_dict
+		if relation != 0:
+			partial_dict.setdefault(master,set([])).add((slaver,relation))
+	return partial_dict,indicator_set
+
 
 #获取合并规则
 def getCombine():
@@ -139,7 +148,7 @@ def main():
 
 	#获取规则模版(同义词，偏序关系，组合关系)
 	category_synonyms_dict = getSynonym()
-	partial_dict = getPartial()
+	partial_dict,indicator_set = getPartial()
 	combine_dict = getCombine()
 
 	#从规则库中构建类目关系树
