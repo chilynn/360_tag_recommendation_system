@@ -48,8 +48,8 @@ def getPartial():
 			relation = 1
 			master = row.split('>')[0]
 			slaver = row.split('>')[1]
-		if relation != 0:
-			partial_dict.setdefault(master,set([])).add((slaver,relation))
+
+		partial_dict.setdefault(master,set([])).add((slaver,relation))
 	return partial_dict,indicator_set
 
 
@@ -101,7 +101,7 @@ def createCategoryTree(partial_dict,combine_dict,category_synonyms_dict):
 	return category_parent_dict,category_child_dict,category_synonyms_dict
 
 #转化为json格式
-def convertToJsonTree(category_parent_dict,category_synonyms_dict):
+def convertToJsonTree(category_parent_dict,category_synonyms_dict,indicator_set):
 	node_dict = {}
 	#将category_parent_dict转成node_dict,category_parent_dict中的每个category作为node_dict中的一个节点
 	for category in category_parent_dict.keys():
@@ -111,18 +111,30 @@ def convertToJsonTree(category_parent_dict,category_synonyms_dict):
 		for synonym in synonym_set:
 			if synonym in category_parent_dict.keys():
 				node_parent |= category_parent_dict[synonym]
-		node_dict[node_delegate_name] = {'name':node_delegate_name,'synonyms':','.join(synonym_set),'parent':node_parent,'children':[]}
+		node_dict[node_delegate_name] = {'name':node_delegate_name,'supportors':[],'synonyms':','.join(synonym_set),'parent':node_parent,'children':[]}
 	
 	#为节点添加children
 	for category in node_dict.keys():
 		for partial_tuple in node_dict[category]['parent']:
 			parent_name = partial_tuple[0]
 			relation = partial_tuple[1]
+			if relation == 0:
+				node_dict[parent_name]['supportors'].append(category)
 			if parent_name in node_dict.keys():
 				node_dict[parent_name]['children'].append(node_dict[category])
 			elif parent_name in category_synonyms_dict.keys():
 				node_delegate_name = category_synonyms_dict[parent_name][0]
 				node_dict[node_delegate_name]['children'].append(node_dict[category])		
+	#删除推导词
+	for category in node_dict.keys():
+		supportors = node_dict[category]['supportors']
+		remove_children = []
+		for child_node in node_dict[category]['children']:
+			child_name = child_node['name']
+			if child_name in supportors:
+				remove_children.append(child_node)
+		for remove_child in remove_children:
+			node_dict[category]['children'].remove(remove_child)
 
 	for category in node_dict.keys():
 		#如果没有父类，则认为是与根节点相连
@@ -155,7 +167,7 @@ def main():
 	category_parent_dict,category_child_dict,category_synonyms_dict = createCategoryTree(partial_dict,combine_dict,category_synonyms_dict)
 
 	#转成json格式
-	tree = convertToJsonTree(category_parent_dict,category_synonyms_dict)
+	tree = convertToJsonTree(category_parent_dict,category_synonyms_dict,indicator_set)
 
 	#外面套一层根节点
 	json_tree = {}

@@ -39,7 +39,7 @@
 
 <nav class="navbar navbar-default navbar-fixed-top">
   <div class="container">
-    <div id="test">synonyms</div>
+    <div style="margin-top:3px" id="test">节点相关信息</div>
   </div>
 </nav>
 
@@ -179,12 +179,12 @@ function click(d) {
   if (d.children) {
     d._children = d.children;
     d.children = null;
-    document.getElementById("test").innerHTML=d.name+"的同义词:<br>"+d.synonyms;
+    document.getElementById("test").innerHTML=d.name+"的同义词: "+d.synonyms+"<br>"+d.name+"的相关词: "+d.supportors;
   } else {
   //show
     d.children = d._children;
     d._children = null;
-    document.getElementById("test").innerHTML=d.name+"的同义词:<br>"+d.synonyms;
+    document.getElementById("test").innerHTML=d.name+"的同义词: "+d.synonyms+"<br>"+d.name+"的相关词: "+d.supportors;
   }
   update(d);
 }

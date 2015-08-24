@@ -111,6 +111,13 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 		else:
 			others_app.setdefault(app_name,[app_download,' '.join(app_brief_seg)])
 	print "覆盖率: "+str(1.0*match_counter/all_app_counter)
+	
+	#剩下没有匹配到的按下载量排序，输出
+	sorted_list = sorted(others_app.items(),key=lambda p:p[1][0],reverse=True)
+	outfile_others = open('others.txt','wb')
+	for val in sorted_list:
+		outfile_others.write(val[0]+'<@>'+val[1][1]+'\r\n')
+
 
 def outputJson(main_category,category_parent_dict,category_child_dict,category_synonyms_dict,tag_recommend_set):
 	top_level_list = getNextLevelCategorySet(category_synonyms_dict,category_child_dict,main_category)
