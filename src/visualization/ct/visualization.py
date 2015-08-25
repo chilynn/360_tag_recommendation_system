@@ -149,7 +149,7 @@ def convertToJsonTree(category_parent_dict,category_synonyms_dict,indicator_set)
 	for category in node_dict.keys():
 		del node_dict[category]['parent']
 
-    #去除不与根节点相连的
+	#去除不与根节点相连的
 	for node_name in node_dict.keys():	
 		if node_dict[node_name]['is_connect_root'] != 1:
 			del node_dict[node_name]
@@ -171,15 +171,15 @@ def main():
 	#转成json格式
 	tree = convertToJsonTree(category_parent_dict,category_synonyms_dict,indicator_set)
 
-	#外面套一层根节点
-	json_tree = {}
-	json_tree['name'] = u'类目树'
-	json_tree['children'] = []
-	for node_name in tree.keys():
-		json_tree['children'].append(tree[node_name])
+	# #外面套一层根节点
+	# json_tree = {}
+	# json_tree['name'] = u'类目树'
+	# json_tree['children'] = []
+	# for node_name in tree.keys():
+	# 	json_tree['children'].append(tree[node_name])
 
 	#输出json	
-	encodedjson = json.dumps(json_tree)
+	encodedjson = json.dumps(tree["root"])
 	outfile = open('data.json','wb')
 	outfile.write(encodedjson)
 

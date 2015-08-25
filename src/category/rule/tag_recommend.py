@@ -9,10 +9,13 @@ import re
 
 #类目id与类目名称映射
 def idToName(category_id):
-	return u"主题壁纸";
-	# return u"购物优惠";
-	# return u"办公商务";
-	# return u"运动健康";
+	id_category_dict = {998:u"实用工具",16:u"便捷生活",14:u"影视视听"}
+	return id_category_dict[int(category_id)]
+	# return u"便捷生活"
+	# return u"主题壁纸"
+	# return u"购物优惠"
+	# return u"办公商务"
+	# return u"运动健康"
 	# return u"通讯社交"
 	# return u"金融理财"
 
@@ -93,7 +96,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 					tag_recommend_set.add(category_delegate)
 					#强规则
 					strong_parent_set = getNodeListOnStrongPath(category_parent_dict[category_delegate],category_parent_dict,set([]))
-					tag_recommend_set = tag_recommend_set | strong_parent_set
+					tag_recommend_set = tag_recommend_set | (strong_parent_set&candidate_tag_set)
 
 			current_level_unmatch_category_set = current_level_category_set - tag_recommend_set
 			for unmatch_category in current_level_unmatch_category_set:
@@ -122,9 +125,11 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 
 		if len(content.keys()) != 0:
 			match_counter += 1
+			if app_download >= 10000000:
+				continue
 			outfile_json.write(json.dumps(output_dict,ensure_ascii=False)+'\r\n')
 		else:
-			if app_download < 300:
+			if app_download <= 300:
 				continue
 			others_app.setdefault(app_name,[app_download,' '.join(app_brief_seg)])
 	print "覆盖率: "+str(1.0*match_counter/all_app_counter)
@@ -254,6 +259,7 @@ def getNodeChildren(category_child_dict,child_set,to_handle_set):
 def createNodeChildrenDict(category_child_dict):
 	node_children_dict = {}
 	for category in category_child_dict.keys():
+		print category
 		child_set =  getNodeChildren(category_child_dict,set([]),category_child_dict[category])
 		node_children_dict.setdefault(category,set([]))
 		for child in child_set:
@@ -401,7 +407,9 @@ if __name__ == '__main__':
 	# category_id = u"12"
 	# category_id = u"17"
 	# category_id = u"102230"
-	category_id = u"18"
+	# category_id = u"18"
+	# category_id = u"16"
+	category_id = u"998"
 
 	main(category_id)
 
