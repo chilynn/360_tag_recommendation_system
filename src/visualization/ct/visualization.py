@@ -30,6 +30,8 @@ def getPartial():
 	infile = open('../../category/rule/rule_template/partial.rule','rb')
 	for row in infile:
 		row = row.strip().decode('utf-8')
+		if "<" in row and ">" in row:
+			continue
 		if row == "":
 			continue
 		#微弱偏序关系0，作推导词，不作tag

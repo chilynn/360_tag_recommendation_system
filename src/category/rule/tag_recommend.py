@@ -5,12 +5,25 @@ import text_process
 import json
 import jieba,jieba.posseg,jieba.analyse
 import itertools
+import re
 
 #类目id与类目名称映射
 def idToName(category_id):
-	return u"运动健康";
+	return u"主题壁纸";
+	# return u"购物优惠";
+	# return u"办公商务";
+	# return u"运动健康";
 	# return u"通讯社交"
 	# return u"金融理财"
+
+#用正则表达式匹配连续英文和数字
+def grabEnglish(text):
+	english_list = []
+	expression = ur"[a-zA-Z0-9-]+"
+	pattern = re.compile(expression)
+	english_list = [val.lower() for val in pattern.findall(text)] 
+	return " ".join(english_list)
+
 
 #获取主类目下的候选标签集合
 def getCandidateTag(main_category,node_children_dict,category_synonyms_dict):
@@ -38,10 +51,11 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 
 	candidate_tag_set,candidate_delegate_tag_set = getCandidateTag(main_category,node_children_dict,category_synonyms_dict)
 	level_category_dict = createLevelCategoryDict(main_category,candidate_tag_set,category_parent_dict,category_child_dict,category_synonyms_dict)
+	# level_category_dict[0] = set([main_category])
 	for level in level_category_dict.keys():
 		print level
 		print ' '.join(level_category_dict[level])
-
+	
 	match_counter = 0
 	all_app_counter = 0
 
@@ -57,6 +71,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 		app_download = int(json_obj["download_times"])
 		app_brief_seg = [word for word in jieba.cut(app_brief) if word not in stopword_set and text_process.isChinese(word)]
 		app_name_brief = app_name+" "+app_brief
+		app_name_brief += " "+grabEnglish(app_name_brief)
 
 		output_dict = {}
 		output_dict["id"] = app_id
@@ -68,7 +83,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 			output_dict.setdefault("character",[]).append(comment_word)
 
 		#自下而上匹配
-		for depth in reversed(range(1,max(level_category_dict.keys())+1)):
+		for depth in reversed(range(0,max(level_category_dict.keys())+1)):
 			if depth not in level_category_dict.keys():
 				continue
 			current_level_category_set = level_category_dict[depth]
@@ -89,7 +104,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 				match_children = unmatch_category_children&tag_recommend_set
 				if len(match_children) >= 3:
 					tag_recommend_set.add(unmatch_category)
-
+		
 		#隐节点
 		for tag in tag_recommend_set:
 			if u'(' in tag and u')' in tag:
@@ -105,19 +120,31 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 		content = outputJson(main_category,category_parent_dict,category_child_dict,category_synonyms_dict,tag_recommend_set)
 		output_dict['content'] = content
 
-		if len(content.keys()) !=0:
+		if len(content.keys()) != 0:
 			match_counter += 1
 			outfile_json.write(json.dumps(output_dict,ensure_ascii=False)+'\r\n')
 		else:
+			if app_download < 300:
+				continue
 			others_app.setdefault(app_name,[app_download,' '.join(app_brief_seg)])
 	print "覆盖率: "+str(1.0*match_counter/all_app_counter)
 	
 	#剩下没有匹配到的按下载量排序，输出
+	other_title_fre = {}
 	sorted_list = sorted(others_app.items(),key=lambda p:p[1][0],reverse=True)
 	outfile_others = open('others.txt','wb')
 	for val in sorted_list:
+		title_seg = jieba.cut(val[0])
+		for title in title_seg:
+			if text_process.isChinese(title) and title not in stopword_set:
+				other_title_fre.setdefault(title,0)
+				other_title_fre[title] += 1
 		outfile_others.write(val[0]+'<@>'+val[1][1]+'\r\n')
 
+	sorted_list = sorted(other_title_fre.items(),key=lambda p:p[1],reverse=True)
+	outfile_others_title = open('others_title.txt','wb')
+	for val in sorted_list:
+		outfile_others_title.write(val[0]+'<@>'+str(val[1])+'\r\n')
 
 def outputJson(main_category,category_parent_dict,category_child_dict,category_synonyms_dict,tag_recommend_set):
 	top_level_list = getNextLevelCategorySet(category_synonyms_dict,category_child_dict,main_category)
@@ -268,6 +295,8 @@ def getPartial():
 	infile = open('rule_template/partial.rule','rb')
 	for row in infile:
 		row = row.strip().decode('utf-8')
+		if "<" in row and ">" in row:
+			continue
 		if row == "":
 			continue
 		#微弱偏序关系0，作推导词，不作tag
@@ -368,7 +397,11 @@ def main(category_id):
 
 if __name__ == '__main__':
 	# category_id = u"102139"
-	category_id = u"999"
+	# category_id = u"999"
 	# category_id = u"12"
+	# category_id = u"17"
+	# category_id = u"102230"
+	category_id = u"18"
+
 	main(category_id)
 
