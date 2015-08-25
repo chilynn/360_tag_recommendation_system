@@ -9,7 +9,7 @@ import re
 
 #类目id与类目名称映射
 def idToName(category_id):
-	id_category_dict = {998:u"实用工具",16:u"便捷生活",14:u"影视视听"}
+	id_category_dict = {998:u"实用工具",16:u"便捷生活",14:u"影视视听",11:u"系统安全"}
 	return id_category_dict[int(category_id)]
 	# return u"便捷生活"
 	# return u"主题壁纸"
@@ -259,7 +259,6 @@ def getNodeChildren(category_child_dict,child_set,to_handle_set):
 def createNodeChildrenDict(category_child_dict):
 	node_children_dict = {}
 	for category in category_child_dict.keys():
-		print category
 		child_set =  getNodeChildren(category_child_dict,set([]),category_child_dict[category])
 		node_children_dict.setdefault(category,set([]))
 		for child in child_set:
@@ -409,7 +408,7 @@ if __name__ == '__main__':
 	# category_id = u"102230"
 	# category_id = u"18"
 	# category_id = u"16"
-	category_id = u"998"
+	category_id = u"11"
 
 	main(category_id)
 

@@ -179,7 +179,7 @@ def main():
 	# 	json_tree['children'].append(tree[node_name])
 
 	#输出json	
-	encodedjson = json.dumps(tree["root"])
+	encodedjson = json.dumps(tree[u"根节点"])
 	outfile = open('data.json','wb')
 	outfile.write(encodedjson)
 
