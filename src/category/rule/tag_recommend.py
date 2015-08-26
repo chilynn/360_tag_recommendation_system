@@ -9,15 +9,9 @@ import re
 
 #类目id与类目名称映射
 def idToName(category_id):
-	id_category_dict = {998:u"实用工具",16:u"便捷生活",14:u"影视视听",11:u"系统安全"}
+	id_category_dict = {11:u"系统安全",12:u"通讯社交",14:u"影视视听",16:u"便捷生活",17:u"办公商务",18:u"主题壁纸",\
+						998:u"实用工具",102139:u"金融理财",102230:u"购物优惠",102233:u"运动健康"}
 	return id_category_dict[int(category_id)]
-	# return u"便捷生活"
-	# return u"主题壁纸"
-	# return u"购物优惠"
-	# return u"办公商务"
-	# return u"运动健康"
-	# return u"通讯社交"
-	# return u"金融理财"
 
 #用正则表达式匹配连续英文和数字
 def grabEnglish(text):
@@ -118,7 +112,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 						output_dict.setdefault(tag,[]).append(hidden_node_next_level_item)
 		#去除推导词
 		tag_recommend_set = tag_recommend_set - indicator_set
-
+		
 		#构建输出字典
 		content = outputJson(main_category,category_parent_dict,category_child_dict,category_synonyms_dict,tag_recommend_set)
 		output_dict['content'] = content
@@ -320,7 +314,10 @@ def getPartial():
 			relation = 1
 			master = row.split('>')[0]
 			slaver = row.split('>')[1]
-
+		#强推导词，不推荐
+		if "_" in slaver:
+			slaver = slaver.replace("_","")
+			indicator_set.add(slaver)
 		partial_dict.setdefault(master,set([])).add((slaver,relation))
 	return partial_dict,indicator_set
 
@@ -401,14 +398,7 @@ def main(category_id):
 	recommendTag(category_id,category_parent_dict,category_child_dict,category_synonyms_dict,indicator_set,comment_category_set,ambiguation_dict)
 
 if __name__ == '__main__':
-	# category_id = u"102139"
-	# category_id = u"999"
-	# category_id = u"12"
-	# category_id = u"17"
-	# category_id = u"102230"
-	# category_id = u"18"
-	# category_id = u"16"
-	category_id = u"11"
+	category_id = u"998"
 
 	main(category_id)
 
