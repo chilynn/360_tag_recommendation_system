@@ -112,7 +112,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 						output_dict.setdefault(tag,[]).append(hidden_node_next_level_item)
 		#去除推导词
 		tag_recommend_set = tag_recommend_set - indicator_set
-		
+
 		#构建输出字典
 		content = outputJson(main_category,category_parent_dict,category_child_dict,category_synonyms_dict,tag_recommend_set)
 		output_dict['content'] = content
@@ -123,7 +123,7 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 				continue
 			outfile_json.write(json.dumps(output_dict,ensure_ascii=False)+'\r\n')
 		else:
-			if app_download <= 300:
+			if app_download <= 500:
 				continue
 			others_app.setdefault(app_name,[app_download,' '.join(app_brief_seg)])
 	print "覆盖率: "+str(1.0*match_counter/all_app_counter)
@@ -398,7 +398,7 @@ def main(category_id):
 	recommendTag(category_id,category_parent_dict,category_child_dict,category_synonyms_dict,indicator_set,comment_category_set,ambiguation_dict)
 
 if __name__ == '__main__':
-	category_id = u"998"
+	category_id = u"11"
 
 	main(category_id)
 

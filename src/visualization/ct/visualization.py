@@ -130,6 +130,7 @@ def convertToJsonTree(category_parent_dict,category_synonyms_dict,indicator_set)
 			elif parent_name in category_synonyms_dict.keys():
 				node_delegate_name = category_synonyms_dict[parent_name][0]
 				node_dict[node_delegate_name]['children'].append(node_dict[category])		
+	
 	#删除推导词
 	for category in node_dict.keys():
 		supportors = node_dict[category]['supportors']
@@ -156,6 +157,7 @@ def convertToJsonTree(category_parent_dict,category_synonyms_dict,indicator_set)
 	for node_name in node_dict.keys():	
 		if node_dict[node_name]['is_connect_root'] != 1:
 			del node_dict[node_name]
+
 
 	return node_dict
 
