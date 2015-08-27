@@ -6,6 +6,17 @@ def main():
 	reload(sys)
 	sys.setdefaultencoding('utf-8')
 
+
+	#获取规则模版(同义词，偏序关系，推导词，组合关系，情感词，歧义词)
+	category_synonyms_dict = getSynonym('rule_template/synonym.rule')
+	partial_dict,indicator_set = getPartial('rule_template/partial.rule')
+	combine_dict = getCombine('rule_template/combine.rule')
+	comment_category_set = getCommenCategorySet('rule_template/comment.rule')
+	ambiguation_dict = getDisambiguation('rule_template/disambiguation.rule')
+
+	#从规则库中构建类目关系树
+	category_parent_dict,category_child_dict,category_synonyms_dict = createCategoryTree(partial_dict,combine_dict,category_synonyms_dict)
+
 #类目id与类目name的映射
 def idToName(category_id):
 	id_category_dict = {11:u"系统安全",12:u"通讯社交",14:u"影视视听",16:u"便捷生活",17:u"办公商务",18:u"主题壁纸",\
@@ -54,6 +65,7 @@ def getSynonym(file_addr):
 		if len(handle_set) != 0:
 			print "WARNING: 重复出现关于\""+delegate+"\"的同义词集合"
 		for handle_word in handle_set:
+			delegate = category_synonyms_dict[handle_word][0]
 			synonym_set |= category_synonyms_dict[handle_word][1]
 
 		for word in synonym_set:
@@ -179,17 +191,15 @@ def createLevelCategoryDict(main_category,candidate_tag_set,category_parent_dict
 	level_category_dict = {}
 	for node in candidate_tag_set:
 		node_delegate = category_synonyms_dict[node][0]
-		node_parent_set = set([partial_tuple[0] for partial_tuple in category_parent_dict[node_delegate]])
-		node_show_place_num = len(node_parent_set&(candidate_tag_set|set([main_category])))
-		depth_set = getNodeDepthGivenRoot(set([main_category]),node_delegate,category_child_dict,1,0,node_show_place_num,set([]))
+		depth_set = getNodeDepthGivenRoot(set([main_category]),node_delegate,category_child_dict,1,set([]))
 		for depth in depth_set:
 			level_category_dict.setdefault(depth,set()).add(node)
 	return level_category_dict
 
 #获取query节点在root节点下出现的所有深度可能
-def getNodeDepthGivenRoot(root_set,query,category_child_dict,depth,match_counter,need_match_num,depth_set):
+def getNodeDepthGivenRoot(root_set,query,category_child_dict,depth,depth_set):
 	if query not in category_child_dict.keys():
-		return -1
+		return set([-1])
 	if query in root_set:
 		return set([0])
 	next_root_set = set([])
@@ -197,14 +207,13 @@ def getNodeDepthGivenRoot(root_set,query,category_child_dict,depth,match_counter
 		for child_tuple in category_child_dict[root]:
 			child = child_tuple[0]
 			if child == query:
-				match_counter += 1
 				depth_set.add(depth)
 			else:	
 				next_root_set.add(child)
-	if match_counter == need_match_num:
+	if len(next_root_set) == 0:
 		return depth_set
 	depth += 1
-	return getNodeDepthGivenRoot(next_root_set,query,category_child_dict,depth,match_counter,need_match_num,depth_set)
+	return getNodeDepthGivenRoot(next_root_set,query,category_child_dict,depth,depth_set)
 
 #给定query，获取其下一级的类目词，包括同义词
 def getNextLevelCategorySet(category_synonyms_dict,category_child_dict,query):

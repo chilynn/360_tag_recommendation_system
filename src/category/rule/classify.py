@@ -30,7 +30,7 @@ def main(category_name):
 #标签推荐
 def recommendTag(category_name,category_parent_dict,category_child_dict,category_synonyms_dict,indicator_set,comment_category_set,ambiguation_dict):
 	#主类目名称
-	main_category = u"实用工具"
+	main_category = u"软件"
 
 	jieba.load_userdict('../../../data/jieba_userdict.txt')
 	stopword_set = text_process.getStopword('../../../data/stopword.txt')
