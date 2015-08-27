@@ -6,7 +6,6 @@ def main():
 	reload(sys)
 	sys.setdefaultencoding('utf-8')
 
-
 	#获取规则模版(同义词，偏序关系，推导词，组合关系，情感词，歧义词)
 	category_synonyms_dict = getSynonym('rule_template/synonym.rule')
 	partial_dict,indicator_set = getPartial('rule_template/partial.rule')
