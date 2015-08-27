@@ -42,18 +42,14 @@ def getCandidateTag(main_category,node_children_dict,category_synonyms_dict):
 #标签推荐
 def recommendTag(category_name,category_parent_dict,category_child_dict,category_synonyms_dict,indicator_set,comment_category_set,ambiguation_dict):
 	#主类目名称
-	main_category = category_name
+	main_category = u"实用工具"
 
-	#未被匹配到的app
-	others_app = {}
-	outfile_json = open('tag_recommend_result.json','wb')
 	jieba.load_userdict('../../../data/jieba_userdict.txt')
 	stopword_set = text_process.getStopword('../../../data/stopword.txt')
 	node_children_dict = createNodeChildrenDict(category_child_dict)
 
 	candidate_tag_set,candidate_delegate_tag_set = getCandidateTag(main_category,node_children_dict,category_synonyms_dict)
 	level_category_dict = createLevelCategoryDict(main_category,candidate_tag_set,category_parent_dict,category_child_dict,category_synonyms_dict)
-	# level_category_dict[0] = set([main_category])
 	for level in level_category_dict.keys():
 		print level
 		print ' '.join(level_category_dict[level])
@@ -63,8 +59,7 @@ def recommendTag(category_name,category_parent_dict,category_child_dict,category
 
 	#遍历主类目下的app
 	infile = open('../data/'+category_name+'.json','rb')
-	outfile_match = open('../data/'+category_name+'_match.json','wb')
-	outfile_unmatch = open('../data/'+category_name+'_unmatch.json','wb')
+	outfile_classification = open('../data/'+ category_name+'_classification.json','wb')
 
 	for row in infile:
 		all_app_counter += 1
@@ -125,35 +120,10 @@ def recommendTag(category_name,category_parent_dict,category_child_dict,category
 		content = outputJson(main_category,category_parent_dict,category_child_dict,category_synonyms_dict,tag_recommend_set)
 		output_dict['content'] = content
 
-		if len(content.keys()) != 0:
-			outfile_match.write(row)
-			match_counter += 1
-			if app_download >= 10000000:
-				continue
-			outfile_json.write(json.dumps(output_dict,ensure_ascii=False)+'\r\n')
-		else:
-			outfile_unmatch.write(row)
-			if app_download <= 500:
-				continue
-			others_app.setdefault(app_name,[app_download,' '.join(app_brief_seg)])
-	print "覆盖率: "+str(1.0*match_counter/all_app_counter)
-	
-	#剩下没有匹配到的按下载量排序，输出
-	other_title_fre = {}
-	sorted_list = sorted(others_app.items(),key=lambda p:p[1][0],reverse=True)
-	outfile_others = open('others.txt','wb')
-	for val in sorted_list:
-		title_seg = jieba.cut(val[0])
-		for title in title_seg:
-			if text_process.isChinese(title) and title not in stopword_set:
-				other_title_fre.setdefault(title,0)
-				other_title_fre[title] += 1
-		outfile_others.write(val[0]+'<@>'+val[1][1]+'\r\n')
+		if len(content.keys()) != 0 and len(tag_recommend_set) >= 3:
+			outfile_classification.write(app_name+"<@>"+" ".join(app_brief_seg)+'\r\n')
 
-	sorted_list = sorted(other_title_fre.items(),key=lambda p:p[1],reverse=True)
-	outfile_others_title = open('others_title.txt','wb')
-	for val in sorted_list:
-		outfile_others_title.write(val[0]+'<@>'+str(val[1])+'\r\n')
+			# outfile_classification.write(" ".join(content.keys())+" -> "+app_name+"<@>"+" ".join(app_brief_seg)+'\r\n')
 
 def outputJson(main_category,category_parent_dict,category_child_dict,category_synonyms_dict,tag_recommend_set):
 	top_level_list = getNextLevelCategorySet(category_synonyms_dict,category_child_dict,main_category)
@@ -408,8 +378,6 @@ def main(category_name):
 	recommendTag(category_name,category_parent_dict,category_child_dict,category_synonyms_dict,indicator_set,comment_category_set,ambiguation_dict)
 
 if __name__ == '__main__':
- 	category_name = u"办公商务"
-	# category_name = u"金融理财"
-	# category_name = u"实用工具"
+	category_name = u"办公商务_unmatch"
 	main(category_name)
 

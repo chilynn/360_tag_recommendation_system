@@ -81,8 +81,8 @@ def main(category_id,query_keyword):
 	mineKeywordCombination(category_id,query_keyword)
 
 if __name__ == '__main__':
-	category_id = u"11"
-	query_keyword = u"还原"
+	category_id = u"102230"
+	query_keyword = u"邮费"
 
 	main(category_id,query_keyword)
 
