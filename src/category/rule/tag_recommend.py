@@ -9,9 +9,14 @@ import re
 
 #类目id与类目名称映射
 def idToName(category_id):
-	id_category_dict = {11:u"系统安全",12:u"通讯社交",14:u"影视视听",16:u"便捷生活",17:u"办公商务",18:u"主题壁纸",\
-						998:u"实用工具",102139:u"金融理财",102230:u"购物优惠",102233:u"运动健康"}
-	return id_category_dict[int(category_id)]
+	category_name = ""
+	if "_" in category_id:
+		category_name = u"实用工具"
+	else:	
+		id_category_dict = {11:u"系统安全",12:u"通讯社交",14:u"影视视听",16:u"便捷生活",17:u"办公商务",18:u"主题壁纸",\
+							998:u"实用工具",102139:u"金融理财",102230:u"购物优惠",102233:u"运动健康"}
+		category_name = id_category_dict[int(category_id)]
+	return category_name
 
 #用正则表达式匹配连续英文和数字
 def grabEnglish(text):
@@ -58,6 +63,8 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 
 	#遍历主类目下的app
 	infile = open('../data/'+str(category_id)+'.json','rb')
+	outfile_unmatch = open('../data/_'+str(category_id)+'.json','wb')
+	outfile_match = open('../data/match.json','wb')
 	for row in infile:
 		all_app_counter += 1
 		
@@ -118,11 +125,13 @@ def recommendTag(category_id,category_parent_dict,category_child_dict,category_s
 		output_dict['content'] = content
 
 		if len(content.keys()) != 0:
+			outfile_match.write(row)
 			match_counter += 1
 			if app_download >= 10000000:
 				continue
 			outfile_json.write(json.dumps(output_dict,ensure_ascii=False)+'\r\n')
 		else:
+			outfile_unmatch.write(row)
 			if app_download <= 500:
 				continue
 			others_app.setdefault(app_name,[app_download,' '.join(app_brief_seg)])
@@ -315,8 +324,8 @@ def getPartial():
 			master = row.split('>')[0]
 			slaver = row.split('>')[1]
 		#强推导词，不推荐
-		if "_" in slaver:
-			slaver = slaver.replace("_","")
+		if "@" in slaver:
+			slaver = slaver.replace("@","")
 			indicator_set.add(slaver)
 		partial_dict.setdefault(master,set([])).add((slaver,relation))
 	return partial_dict,indicator_set
@@ -398,7 +407,7 @@ def main(category_id):
 	recommendTag(category_id,category_parent_dict,category_child_dict,category_synonyms_dict,indicator_set,comment_category_set,ambiguation_dict)
 
 if __name__ == '__main__':
-	category_id = u"11"
+	category_id = u"998"
 
 	main(category_id)
 

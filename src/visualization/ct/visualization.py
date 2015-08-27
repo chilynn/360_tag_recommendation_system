@@ -51,8 +51,8 @@ def getPartial():
 			master = row.split('>')[0]
 			slaver = row.split('>')[1]
 		#强推导词，不推荐
-		if "_" in slaver:
-			slaver = slaver.replace("_","")
+		if "@" in slaver:
+			slaver = slaver.replace("@","")
 			indicator_set.add(slaver)
 		partial_dict.setdefault(master,set([])).add((slaver,relation))
 	return partial_dict,indicator_set
