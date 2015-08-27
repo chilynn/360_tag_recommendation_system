@@ -1,109 +1,31 @@
 #encoding=utf-8
 import sys
+sys.path.append('../../category/rule')
 import json
 import jieba,jieba.posseg,jieba.analyse
+import rule_base
 
+#数据可视化
+def main():
+	reload(sys)
+	sys.setdefaultencoding('utf-8')
 
-#获取同义词
-def getSynonym():
-	print 'getting synonym set'
-	category_synonyms_dict = {}
-	handled_set = set([]) #存储已经处理过的词
-	infile = open('../../category/rule/rule_template/synonym.rule','rb')
-	for row in infile:
-		#该同义词集合的代表词
-		delegate = row.strip().split('@')[0].decode('utf-8')
-		#同义词集合
-		#暂时不考虑一个词可以存在多个不同语义的同义词集合
-		synonym_set = set(row.strip().split('@')[1].decode('utf-8').split(',')) - handled_set
-		handled_set = handled_set | synonym_set
-		for word in synonym_set:
-			category_synonyms_dict.setdefault(word,[delegate,set([])])
-			category_synonyms_dict[word][1] |= synonym_set
-	return category_synonyms_dict
+	#获取规则模版(同义词，偏序关系，组合关系)
+	category_synonyms_dict = rule_base.getSynonym('../../category/rule/rule_template/synonym.rule')
+	partial_dict,indicator_set = rule_base.getPartial('../../category/rule/rule_template/partial.rule')
+	combine_dict = rule_base.getCombine('../../category/rule/rule_template/combine.rule')
 
-#获取偏序关系
-def getPartial():
-	print 'getting partial relationship'
-	partial_dict = {}
-	indicator_set = set([])
-	infile = open('../../category/rule/rule_template/partial.rule','rb')
-	for row in infile:
-		row = row.strip().decode('utf-8')
-		if "<" in row and ">" in row:
-			continue
-		if row == "":
-			continue
-		#微弱偏序关系0，作推导词，不作tag
-		if "~" in row:
-			relation = 0
-			master = row.split("~")[0]
-			slaver = row.split("~")[1]
-			indicator_set.add(slaver)
-		#强偏序关系2
-		elif '>>' in row:
-			relation = 2
-			master = row.split('>>')[0]
-			slaver = row.split('>>')[1]
-		#弱偏序关系1
-		else:
-			relation = 1
-			master = row.split('>')[0]
-			slaver = row.split('>')[1]
-		#强推导词，不推荐
-		if "@" in slaver:
-			slaver = slaver.replace("@","")
-			indicator_set.add(slaver)
-		partial_dict.setdefault(master,set([])).add((slaver,relation))
-	return partial_dict,indicator_set
+	#从规则库中构建类目关系树
+	category_parent_dict,category_child_dict,category_synonyms_dict = rule_base.createCategoryTree(partial_dict,combine_dict,category_synonyms_dict)
 
+	#转成json格式
+	tree = convertToJsonTree(category_parent_dict,category_synonyms_dict,indicator_set)
 
-#获取合并规则
-def getCombine():
-	print 'getting combine rule'
-	combine_dict = {}
-	infile = open('../../category/rule/rule_template/combine.rule','rb')
-	for row in infile:
-		row = row.strip().decode('utf-8')
-		main_category = row.split('==')[0]
-		sub_category_set = set(row.split('==')[1].split(','))
-		for sub_category in sub_category_set:
-			combine_dict.setdefault(main_category,set([])).add((sub_category,3))
-	return combine_dict
+	#输出json	
+	encodedjson = json.dumps(tree[u"根节点"])
+	outfile = open('data.json','wb')
+	outfile.write(encodedjson)
 
-#填充层次结构树
-def fillCategoryTree(category_parent_dict,category_child_dict,parent_child_dict,category_synonyms_dict):
-	for master in parent_child_dict.keys():
-		if master in category_synonyms_dict.keys():
-			master_delegate = category_synonyms_dict[master][0]
-		else:
-			master_delegate = master
-			category_synonyms_dict.setdefault(master_delegate,[master_delegate,set([master_delegate])])
-		category_parent_dict.setdefault(master_delegate,set([]))
-		for partial_tuple in parent_child_dict[master]:
-			slaver = partial_tuple[0]
-			relation = partial_tuple[1]
-			if slaver in category_synonyms_dict.keys():
-				slaver_delegate = category_synonyms_dict[slaver][0]
-			else:
-				slaver_delegate = slaver
-				category_synonyms_dict.setdefault(slaver_delegate,[slaver_delegate,set([slaver_delegate])])
-			category_parent_dict.setdefault(slaver_delegate,set([])).add((master_delegate,relation))
-			category_child_dict.setdefault(slaver_delegate,set([]))
-			category_child_dict.setdefault(master_delegate,set([])).add((slaver_delegate,relation))
-	return 	category_parent_dict,category_child_dict
-
-#构建层次结构树
-def createCategoryTree(partial_dict,combine_dict,category_synonyms_dict):
-	#category与父类关系
-	category_parent_dict = {}
-	#category与子类关系
-	category_child_dict = {}
-	#偏序关系
-	category_parent_dict,category_child_dict = fillCategoryTree(category_parent_dict,category_child_dict,partial_dict,category_synonyms_dict)
-	#合并关系
-	category_parent_dict,category_child_dict = fillCategoryTree(category_parent_dict,category_child_dict,combine_dict,category_synonyms_dict)
-	return category_parent_dict,category_child_dict,category_synonyms_dict
 
 #转化为json格式
 def convertToJsonTree(category_parent_dict,category_synonyms_dict,indicator_set):
@@ -160,34 +82,6 @@ def convertToJsonTree(category_parent_dict,category_synonyms_dict,indicator_set)
 
 
 	return node_dict
-
-def main():
-	reload(sys)
-	sys.setdefaultencoding('utf-8')
-
-	#获取规则模版(同义词，偏序关系，组合关系)
-	category_synonyms_dict = getSynonym()
-	partial_dict,indicator_set = getPartial()
-	combine_dict = getCombine()
-
-	#从规则库中构建类目关系树
-	category_parent_dict,category_child_dict,category_synonyms_dict = createCategoryTree(partial_dict,combine_dict,category_synonyms_dict)
-
-	#转成json格式
-	tree = convertToJsonTree(category_parent_dict,category_synonyms_dict,indicator_set)
-
-	# #外面套一层根节点
-	# json_tree = {}
-	# json_tree['name'] = u'类目树'
-	# json_tree['children'] = []
-	# for node_name in tree.keys():
-	# 	json_tree['children'].append(tree[node_name])
-
-	#输出json	
-	encodedjson = json.dumps(tree[u"根节点"])
-	outfile = open('data.json','wb')
-	outfile.write(encodedjson)
-
 
 if __name__ == '__main__':
 	main()
