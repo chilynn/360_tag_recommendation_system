@@ -70,8 +70,7 @@ def getTrainTest(category_name,category_parent_dict,category_child_dict,category
 	all_counter = 0
 	train_counter = 0
 	for row in infile:
-		if all_counter >= 5000:
-			break
+
 		all_counter += 1
 		json_obj = json.loads(row.strip())
 		app_id = int(json_obj["id"])
@@ -153,5 +152,5 @@ def classify(category_name,category_parent_dict,category_child_dict,category_syn
 
 
 if __name__ == '__main__':
-	category_name = u"摄影摄像_unmatch"
+	category_name = u"办公商务_unmatch"
 	main(category_name)

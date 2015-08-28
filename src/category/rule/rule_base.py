@@ -12,9 +12,11 @@ def main():
 	combine_dict = getCombine('rule_template/combine.rule')
 	comment_category_set = getCommenCategorySet('rule_template/comment.rule')
 	ambiguation_dict = getDisambiguation('rule_template/disambiguation.rule')
-
+	
 	#从规则库中构建类目关系树
 	category_parent_dict,category_child_dict,category_synonyms_dict = createCategoryTree(partial_dict,combine_dict,category_synonyms_dict)
+
+	detectCircular(category_parent_dict,category_synonyms_dict)
 
 #类目id与类目name的映射
 def idToName(category_id):
@@ -123,15 +125,15 @@ def getCombine(file_addr):
 	return combine_dict
 
 #填充层次结构树
-def fillCategoryTree(category_parent_dict,category_child_dict,parent_child_dict,category_synonyms_dict):
-	for master in parent_child_dict.keys():
+def fillCategoryTree(category_parent_dict,category_child_dict,partial_dict,category_synonyms_dict):
+	for master in partial_dict.keys():
 		if master in category_synonyms_dict.keys():
 			master_delegate = category_synonyms_dict[master][0]
 		else:
 			master_delegate = master
 			category_synonyms_dict.setdefault(master_delegate,[master_delegate,set([master_delegate])])
 		category_parent_dict.setdefault(master_delegate,set([]))
-		for partial_tuple in parent_child_dict[master]:
+		for partial_tuple in partial_dict[master]:
 			slaver = partial_tuple[0]
 			relation = partial_tuple[1]
 			if slaver in category_synonyms_dict.keys():
@@ -157,6 +159,28 @@ def createCategoryTree(partial_dict,combine_dict,category_synonyms_dict):
 	category_parent_dict,category_child_dict = fillCategoryTree(category_parent_dict,category_child_dict,combine_dict,category_synonyms_dict)
 	
 	return category_parent_dict,category_child_dict,category_synonyms_dict
+
+
+#向上遍历直到根节点
+def getNodeListToRoot(query,to_handle_set,category_parent_dict,parent_set):
+	if len(to_handle_set) == 0:
+		return parent_set
+	for parent_tuple in to_handle_set:
+		parent_name = parent_tuple[0]
+		if query == parent_name:
+			print "found circular"
+			print query
+		parent_set.add(parent_name)
+		to_handle_set = to_handle_set | category_parent_dict[parent_name]
+		to_handle_set = to_handle_set - set([parent_tuple])
+	return getNodeListToRoot(query,to_handle_set,category_parent_dict,parent_set)
+
+
+#环状链检测
+def detectCircular(category_parent_dict,category_synonyms_dict):
+	for category in category_parent_dict.keys():
+		getNodeListToRoot(category,category_parent_dict[category],category_parent_dict,set([]))
+
 
 #用正则表达式匹配连续英文和数字
 def grabEnglish(text):
@@ -238,16 +262,6 @@ def getNodeListOnStrongPath(to_handle_set,category_parent_dict,strong_parent_set
 		to_handle_set = to_handle_set - set([parent_tuple])
 	return getNodeListOnStrongPath(to_handle_set,category_parent_dict,strong_parent_set)
 
-#向上遍历直到根节点
-def getNodeListToRoot(to_handle_set,category_parent_dict,parent_set):
-	if len(to_handle_set) == 0:
-		return parent_set
-	for parent_tuple in to_handle_set:
-		parent_name = parent_tuple[0]
-		parent_set.add(parent_name)
-		to_handle_set = to_handle_set | category_parent_dict[parent_name]
-		to_handle_set = to_handle_set - set([parent_tuple])
-	return getNodeListToRoot(to_handle_set,category_parent_dict,parent_set)
 
 #获取一个节点下面的所有孩子(代表词)
 def getNodeChildren(category_child_dict,child_set,to_handle_set):
