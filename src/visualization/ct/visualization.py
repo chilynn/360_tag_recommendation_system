@@ -64,22 +64,9 @@ def convertToJsonTree(category_parent_dict,category_synonyms_dict,indicator_set)
 		for remove_child in remove_children:
 			node_dict[category]['children'].remove(remove_child)
 
-	for category in node_dict.keys():
-		#如果没有父类，则认为是与根节点相连
-		if len(node_dict[category]['parent']) == 0:
-			node_dict[category].setdefault('is_connect_root',1)
-		else:
-			node_dict[category].setdefault('is_connect_root',0)
-	
 	#删除掉所有节点的parent字段
 	for category in node_dict.keys():
 		del node_dict[category]['parent']
-
-	#去除不与根节点相连的
-	for node_name in node_dict.keys():	
-		if node_dict[node_name]['is_connect_root'] != 1:
-			del node_dict[node_name]
-
 
 	return node_dict
 

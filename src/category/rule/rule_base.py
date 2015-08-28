@@ -62,7 +62,7 @@ def getSynonym(file_addr):
 
 		handle_set = synonym_set & set(category_synonyms_dict.keys())
 		if len(handle_set) != 0:
-			print "WARNING: 重复出现关于\""+delegate+"\"的同义词集合"
+			print "WARNING: 关于\""+delegate+"\"的同义词集合重复出现"
 		for handle_word in handle_set:
 			delegate = category_synonyms_dict[handle_word][0]
 			synonym_set |= category_synonyms_dict[handle_word][1]
@@ -83,6 +83,8 @@ def getPartial(file_addr):
 	infile = open(file_addr,'rb')
 	for row in infile:
 		row = row.strip().decode('utf-8')
+		if "<" in row and ">" in row:
+			continue
 		if row == "":
 			continue
 		#微弱偏序关系0，作推导词，不作tag

@@ -84,9 +84,10 @@ def recommendTag(category_name,category_parent_dict,category_child_dict,category
 				score = len(node_children_dict[candidate_main_level] & tag_recommend_set)
 				candidate_main_level_score_dict.setdefault(score,set([])).add(candidate_main_level)
 			max_score = max(candidate_main_level_score_dict.keys())
-			if max_score >= 2:
+			if max_score >= 3:
 				final_category_list = list(candidate_main_level_score_dict[max_score])
-				outfile_classification.write(final_category_list[0]+"->"+app_name+"<@>"+" ".join(app_brief_seg)+'\r\n')
+				if final_category_list[0] != category_name:
+					outfile_classification.write(str(app_id)+"->"+final_category_list[0]+"->"+app_name+"<@>"+" ".join(app_brief_seg)+'\r\n')
 
 def outputJson(main_category,category_parent_dict,category_child_dict,category_synonyms_dict,tag_recommend_set):
 	top_level_list = rule_base.getNextLevelCategorySet(category_synonyms_dict,category_child_dict,main_category)
@@ -108,5 +109,6 @@ def outputJson(main_category,category_parent_dict,category_child_dict,category_s
 
 
 if __name__ == '__main__':
-	category_name = u"购物优惠_unmatch"
+	category_name = u"影音视听"
+	# category_name = u"购物优惠_unmatch"
 	main(category_name)
