@@ -26,6 +26,17 @@ def main():
 	outfile = open('data.json','wb')
 	outfile.write(encodedjson)
 
+	outfile = open("synonym.csv","wb")
+	outfile.write("delegate,synonym_set\r\n")
+	delegate_handle_set = set([])
+	for category in category_synonyms_dict.keys():
+		if "(" in category and ")" in category:
+			continue
+		delegate = category_synonyms_dict[category][0]
+		if delegate not in delegate_handle_set:
+			outfile.write(delegate+","+" ".join(category_synonyms_dict[category][1])+"\r\n")
+			delegate_handle_set |= set([delegate])
+
 
 #转化为json格式
 def convertToJsonTree(category_parent_dict,category_synonyms_dict,indicator_set):
