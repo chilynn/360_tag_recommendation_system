@@ -1,6 +1,6 @@
 #encoding=utf-8
 import sys
-sys.path.append('../common')
+sys.path.append('../../common')
 import text_process
 import jft
 import itertools
@@ -8,7 +8,7 @@ import itertools
 #获取语料中的候选词
 def getWords():
 	word_set = set([])
-	infile = open('../../data/all_word.txt','rb')
+	infile = open('../../../data/all_word.txt','rb')
 	for row in infile:
 		row = row.strip().decode('utf-8')
 		word = row.split(',')[0]

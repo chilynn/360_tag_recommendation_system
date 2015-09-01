@@ -1,6 +1,6 @@
 #encoding=utf-8
 import sys
-sys.path.append("../common/")
+sys.path.append("../../common/")
 import os
 import text_process
 import file_utils
@@ -15,14 +15,12 @@ baidu_tag_keys = [u"别名",u"简称",u"其他名称",u"英文缩写"]
 
 def readJson(word2vec_model):
 	print 'parsing json'
-	stopword_set = text_process.getStopword('../../data/stopword.txt')
+	stopword_set = text_process.getStopword('../../../data/stopword.txt')
 	outfile = open('baidu_baike_definition.txt','wb')
-	infile = open('../scrapy/baidu_baike_definition/crawl_data/definition.json','rb')
+	infile = open('../../scrapy/baidu_baike_definition/crawl_data/definition.json','rb')
 	row_index = 0
 	for row in infile:
-		# row_index += 1
-		# if row_index > 30000:
-		# 	break
+
 		json_str = row.strip()
 		json_str = json_str.lstrip('[')
 		json_str = json_str.rstrip(',')
@@ -98,9 +96,7 @@ def main():
 	reload(sys)
 	sys.setdefaultencoding('utf-8')
 	
-	word2vec_model = Word2Vec.load('../../data/word2vec.model')
-	# for simi_word_tuple in word2vec_model.most_similar(positive=[u"传奇"],topn=80):
-	# 	print simi_word_tuple[0]+" "+str(simi_word_tuple[1])
+	word2vec_model = Word2Vec.load('../../../data/word2vec.model')
 	readJson(word2vec_model)
 
 if __name__ == '__main__':

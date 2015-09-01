@@ -1,6 +1,6 @@
 #encoding=utf-8
 import sys
-sys.path.append('../common')
+sys.path.append('../../common')
 import text_process
 import json
 import jieba
@@ -10,7 +10,7 @@ from gensim.models import Word2Vec
 #获取语料中的候选词
 def getWords():
 	word_set = set([])
-	infile = open('../../data/all_word.txt','rb')
+	infile = open('../../../data/all_word.txt','rb')
 	row_index = 0
 	for row in infile:
 		row = row.strip().decode('utf-8')
@@ -19,10 +19,12 @@ def getWords():
 	infile.close()
 	return word_set
 
+#缩写挖掘
 def mineAbbreviation():
-	jieba.load_userdict("../../data/jieba_userdict.txt")
-	stopword_set = text_process.getStopword('../../data/stopword.txt')
-	word2vec_model = Word2Vec.load('../../data/word2vec.model')
+	print 'mining abbreviation'
+	jieba.load_userdict("../../../data/jieba_userdict.txt")
+	stopword_set = text_process.getStopword('../../../data/stopword.txt')
+	word2vec_model = Word2Vec.load('../../../data/word2vec.model')
 	word_set = getWords()
 	word_syn_dict = {}
 	for word in word_set:
